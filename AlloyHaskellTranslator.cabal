@@ -4,13 +4,13 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a282f643a3f11c98c5f6bb28b2f806c04191747198c7b30070b74d12e8db2e0c
+-- hash: 15a72b5098df1de2b8070da4ea94d3f323a2503aa5a2836e879be140a89dcf26
 
-name:           alloy
+name:           AlloyHaskellTranslator
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/alloy#readme>
-homepage:       https://github.com/githubuser/alloy#readme
-bug-reports:    https://github.com/githubuser/alloy/issues
+description:    Please see the README on GitHub at <https://github.com/githubuser/AlloyHaskellTranslator#readme>
+homepage:       https://github.com/githubuser/AlloyHaskellTranslator#readme
+bug-reports:    https://github.com/githubuser/AlloyHaskellTranslator/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2019 Author name here
@@ -23,41 +23,42 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/alloy
+  location: https://github.com/githubuser/AlloyHaskellTranslator
 
 library
   exposed-modules:
       Expressions
+      Lib
       Translator
   other-modules:
-      Paths_alloy
+      Paths_AlloyHaskellTranslator
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
   default-language: Haskell2010
 
-executable alloy-exe
+executable AlloyHaskellTranslator-exe
   main-is: Main.hs
   other-modules:
-      Paths_alloy
+      Paths_AlloyHaskellTranslator
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      alloy
+      AlloyHaskellTranslator
     , base >=4.7 && <5
   default-language: Haskell2010
 
-test-suite alloy-test
+test-suite AlloyHaskellTranslator-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_alloy
+      Paths_AlloyHaskellTranslator
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      alloy
+      AlloyHaskellTranslator
     , base >=4.7 && <5
   default-language: Haskell2010
