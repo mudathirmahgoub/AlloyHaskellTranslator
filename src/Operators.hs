@@ -71,3 +71,14 @@ data BinaryOp
     | OR -- ||    
     | IFF -- <=>
     deriving (Show, Eq)
+
+data Quantifier
+    = All
+    | No
+    | Lone
+    | One
+    | Some
+    | Sum
+    | Exists
+    | Comprehension
+    deriving (Show, Eq)

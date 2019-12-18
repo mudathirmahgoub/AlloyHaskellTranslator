@@ -7,7 +7,7 @@ a = Prim { isAbstract       = False
          , children         = []
          , parent           = Univ
          , primLabel        = "A"
-         , primMultiplicity = One
+         , primMultiplicity = ONEOF
          , primFacts        = []
          }
 
@@ -15,7 +15,7 @@ b = Prim { isAbstract       = False
          , children         = []
          , parent           = Univ
          , primLabel        = "B"
-         , primMultiplicity = One
+         , primMultiplicity = ONEOF
          , primFacts        = []
          }
 
