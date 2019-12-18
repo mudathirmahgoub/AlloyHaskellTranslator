@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 15a72b5098df1de2b8070da4ea94d3f323a2503aa5a2836e879be140a89dcf26
+-- hash: d1746b0d9453e108b3b952f934ffb059a5cb613bcd57a86ee0d239bd3d774213
 
 name:           AlloyHaskellTranslator
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Env
       Expressions
       Lib
       Translator
