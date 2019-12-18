@@ -1,7 +1,7 @@
-module Translator    
-where
-import Expressions
-import Env
+module Translator where
+import           Alloy
+import           Smt
+import           Env
 
-translate :: AlloyExpr -> SMTExpr
+translate :: AlloyExpr -> SmtExpr
 translate (AlloyBinary op x y) = SMTBinary op SMTUnary SMTUnary

@@ -1,5 +1,7 @@
 module Env where
-import           Expressions
+
+import           Alloy
+
 type Env = [(String, AlloyExpr)]
 
 get :: Env -> String -> AlloyExpr
