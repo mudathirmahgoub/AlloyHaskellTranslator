@@ -54,9 +54,9 @@ data BinaryOp
     | EQUALS -- =    
     | NOT_EQUALS -- !=    
     | IMPLIES -- =>    
-    | LT -- <    
+    | Less -- <    
     | LTE -- <=    
-    | GT -- >    
+    | Greater -- >    
     | GTE -- >=    
     | NOT_LT -- !<    
     | NOT_LTE -- !<=    
