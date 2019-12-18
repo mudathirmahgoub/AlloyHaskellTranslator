@@ -10,7 +10,7 @@ data AlloyExpr
     | AlloyUnary UnaryOp AlloyExpr
     | AlloyBinary BinaryOp AlloyExpr AlloyExpr
     | AlloyITE AlloyExpr AlloyExpr AlloyExpr
-    | AlloyQt Quantifier AlloyExpr
+    | AlloyQt Quantifier [Decl] AlloyExpr
     deriving (Show, Eq)
 
 -- Decl has field expr to support multiplicity constraints
@@ -143,5 +143,5 @@ typeof (AlloyBinary IFF              _ _) = AlloyBool
 -- if then else expression
 typeof (AlloyITE    _                x _) = typeof x
 -- quantified expression
-typeof (AlloyQt _ _                     ) = AlloyBool
+typeof (AlloyQt     _                _ _) = AlloyBool
 
