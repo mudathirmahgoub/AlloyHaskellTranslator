@@ -1,6 +1,7 @@
 module Alloy where
 
 import           Operators
+import Utils
 
 data AlloyExpr
     = Prime PrimSig
@@ -110,7 +111,7 @@ typeof (AlloyBinary LONE_ARROW_SOME  x y) = typeof (AlloyBinary ARROW x y)
 typeof (AlloyBinary LONE_ARROW_ONE   x y) = typeof (AlloyBinary ARROW x y)
 typeof (AlloyBinary LONE_ARROW_LONE  x y) = typeof (AlloyBinary ARROW x y)
 typeof (AlloyBinary ISSEQ_ARROW_LONE x y) = undefined
-typeof (AlloyBinary JOIN             x y) = undefined
+typeof (AlloyBinary JOIN             x y) = joinType (typeof x) (typeof y)
 typeof (AlloyBinary DOMAIN           x y) = undefined
 typeof (AlloyBinary RANGE            x y) = undefined
 typeof (AlloyBinary INTERSECT        x _) = typeof x
@@ -148,3 +149,8 @@ typeof (AlloyQt     _                _ _) = AlloyBool
 -- let expression
 typeof (AlloyLet _ x) = typeof x
 
+
+joinType :: AlloyType -> AlloyType -> AlloyType
+joinType AlloyBool _ = error "Can not apply join to boolean"
+joinType _ AlloyBool = error "Can not apply join to boolean"
+joinType (Product xs) (Product ys) = Product ((excludeLast xs) ++ (excludeFirst ys))
