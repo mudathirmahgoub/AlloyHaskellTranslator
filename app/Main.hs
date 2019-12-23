@@ -20,7 +20,7 @@ b = Prim { isAbstract       = False
          }
 
 printTranslation :: IO ()
-printTranslation = print (translate (AlloyBinary PLUS (Prime a) (Prime b)))
+printTranslation = print (typeof  (AlloyBinary PLUS (Prime a) (Prime b)))
 
 main :: IO ()
 main = printTranslation

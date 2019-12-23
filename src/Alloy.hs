@@ -12,7 +12,7 @@ data AlloyExpr
     | AlloyBinary BinaryOp AlloyExpr AlloyExpr
     | AlloyITE AlloyExpr AlloyExpr AlloyExpr
     | AlloyQt Quantifier [Decl] AlloyExpr
-    | AlloyLet String AlloyExpr
+    | AlloyLet String AlloyExpr AlloyExpr
     deriving (Show, Eq)
 
 -- Decl has field expr to support multiplicity constraints
@@ -147,7 +147,7 @@ typeof (AlloyITE    _                x _) = typeof x
 -- quantified expression
 typeof (AlloyQt     _                _ _) = AlloyBool
 -- let expression
-typeof (AlloyLet _ x) = typeof x
+typeof (AlloyLet _ _ x) = typeof x
 
 
 joinType :: AlloyType -> AlloyType -> AlloyType
