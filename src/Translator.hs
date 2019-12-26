@@ -4,8 +4,13 @@ import           Alloy
 import           Smt
 import           Env
 
+declare :: (Env, AlloyExpr) -> (Env, SmtExpr)
+declare (env, (Prime x)) = undefined 
+declare x = error ("Can not declare " ++ (show x))
+
 translate :: (Env, AlloyExpr) -> (Env, SmtExpr)
-translate (env, (Prime x)               ) = undefined
+translate (env, (Prime x)) =
+  if contains env (label x) then (env, get env (label x)) else declare (env, (Prime x)) 
 translate (env, (Subset x)              ) = undefined
 -- | Field
 translate (env, (AlloyConstant name sig)) = case sig of
@@ -76,19 +81,39 @@ translate (env, (AlloyBinary EQUALS x y)) =
   ( env
   , SmtBinary EQUALS (second (translate (env, x))) (second (translate (env, y)))
   )
-translate (env, (AlloyBinary NOT_EQUALS x y)) = ( env,SmtUnary
-  NOT
-  (SmtBinary EQUALS (second (translate (env, x))) (second (translate (env, y)))))
+translate (env, (AlloyBinary NOT_EQUALS x y)) =
+  ( env
+  , SmtUnary
+    NOT
+    (SmtBinary EQUALS
+               (second (translate (env, x)))
+               (second (translate (env, y)))
+    )
+  )
 translate (env, (AlloyBinary IMPLIES x y)) =
-  ( env, SmtBinary IMPLIES (second (translate (env, x))) (second (translate (env, y))))
+  ( env
+  , SmtBinary IMPLIES
+              (second (translate (env, x)))
+              (second (translate (env, y)))
+  )
 translate (env, (AlloyBinary Less x y)) =
-  ( env, SmtBinary Less (second (translate (env, x))) (second (translate (env, y))))
+  ( env
+  , SmtBinary Less (second (translate (env, x))) (second (translate (env, y)))
+  )
 translate (env, (AlloyBinary LTE x y)) =
-  ( env, SmtBinary LTE (second (translate (env, x))) (second (translate (env, y))))
+  ( env
+  , SmtBinary LTE (second (translate (env, x))) (second (translate (env, y)))
+  )
 translate (env, (AlloyBinary Greater x y)) =
-  ( env, SmtBinary Greater (second (translate (env, x))) (second (translate (env, y))))
+  ( env
+  , SmtBinary Greater
+              (second (translate (env, x)))
+              (second (translate (env, y)))
+  )
 translate (env, (AlloyBinary GTE x y)) =
-  ( env, SmtBinary GTE (second (translate (env, x))) (second (translate (env, y))))
+  ( env
+  , SmtBinary GTE (second (translate (env, x))) (second (translate (env, y)))
+  )
 translate (env, (AlloyBinary NOT_LT x y) ) = undefined
 translate (env, (AlloyBinary NOT_LTE x y)) = undefined
 translate (env, (AlloyBinary NOT_GT x y) ) = undefined
