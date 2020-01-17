@@ -1,13 +1,32 @@
+{-# LANGUAGE RecordWildCards #-}
 module Alloy where
 
 import           Operators
-import Utils
+import           Utils
+
+data AlloyModel
+    = AlloyModel
+    {
+        signatures :: [Sig],
+        commands :: [Command],
+        globalFacts :: [AlloyExpr]
+    }
+
+data Command
+    = Run AlloyExpr Scope
+    | Check AlloyExpr Scope
+
+data Scope
+    = Scope
+    {
+        sig :: [Sig],
+        isExact :: Bool
+    }
 
 data AlloyExpr
-    = Prime PrimSig
-    | Subset SubsetSig
+    = Signature Sig
     | Field SigField
-    | AlloyConstant String PrimSig
+    | AlloyConstant String Sig
     | AlloyUnary UnaryOp AlloyExpr
     | AlloyBinary BinaryOp AlloyExpr AlloyExpr
     | AlloyITE AlloyExpr AlloyExpr AlloyExpr
@@ -27,64 +46,62 @@ data Decl = Decl
 
 data SigField = SigField {fieldLabel:: String, decl:: Decl} deriving (Show, Eq)
 
-class Sig a where
-    label :: a -> String
-    multiplicity:: a -> UnaryOp
-    facts :: a -> [AlloyExpr]
-
-
-
-instance Sig PrimSig where
-    label        = primLabel
-    multiplicity = primMultiplicity
-    facts        = primFacts
-
-data PrimSig = Prim
+data Sig
+    = PrimSig
     {
         isAbstract:: Bool,
-        children:: [PrimSig],
-        parent:: PrimSig,
+        children:: [Sig],
+        parent:: Sig,
         primLabel:: String,
         primMultiplicity:: UnaryOp,
         primFacts :: [AlloyExpr]
     }
-    | Univ | SigInt | None | SigString
-    deriving (Show, Eq)
-
-data SubsetSig = SubsetSig
+    | SubsetSig
     {
         sigLabel:: String,
-        parents:: [PrimSig], -- actually it is defined as [Sig] in Java     
+        parents:: [Sig],
         subsetLabel:: String,
         subsetMultiplicity:: UnaryOp,
         subsetFacts :: [AlloyExpr]
     }
+    | Univ | SigInt | None | SigString
     deriving (Show, Eq)
 
-instance Sig SubsetSig where
-    label        = subsetLabel
-    multiplicity = subsetMultiplicity
-    facts        = subsetFacts
+isPrime :: Sig -> Bool
+isPrime SubsetSig{} = False
+isPrime _           = True
+
+label :: Sig -> String
+label PrimSig { primLabel = x }     = x
+label SubsetSig { subsetLabel = x } = x
+
+multiplicity :: Sig -> UnaryOp
+multiplicity PrimSig { primMultiplicity = x }     = x
+multiplicity SubsetSig { subsetMultiplicity = x } = x
+
+facts :: Sig -> [AlloyExpr]
+facts PrimSig { primFacts = x }     = x
+facts SubsetSig { subsetFacts = x } = x
 
 -- simple version
-data AlloyType = Product [PrimSig] | AlloyBool deriving (Show, Eq)
+data AlloyType = Product [Sig] | AlloyBool deriving (Show, Eq)
 
 typeof :: AlloyExpr -> AlloyType
-typeof (Prime  x                   ) = Product [x]
-typeof (Subset x                   ) = Product (parents x)
+typeof (Signature PrimSig {..}             ) = Product [PrimSig { .. }]
+typeof (Signature SubsetSig { parents = x }) = Product x
 -- | Field
-typeof (AlloyConstant name      sig) = Product [sig]
-typeof (AlloyUnary    SOMEOF    x  ) = typeof x
-typeof (AlloyUnary    LONEOF    x  ) = typeof x -- review this vs lone
-typeof (AlloyUnary    ONEOF     x  ) = typeof x
-typeof (AlloyUnary    SETOF     x  ) = typeof x
-typeof (AlloyUnary    EXACTLYOF x  ) = undefined -- review this
-typeof (AlloyUnary    NOT       _  ) = AlloyBool
-typeof (AlloyUnary    NO        _  ) = AlloyBool
-typeof (AlloyUnary    SOME      _  ) = AlloyBool
-typeof (AlloyUnary    LONE      _  ) = AlloyBool
-typeof (AlloyUnary    ONE       _  ) = AlloyBool
-typeof (AlloyUnary    TRANSPOSE x  ) = Product (reverse ys)
+typeof (AlloyConstant name      sig        ) = Product [sig]
+typeof (AlloyUnary    SOMEOF    x          ) = typeof x
+typeof (AlloyUnary    LONEOF    x          ) = typeof x -- review this vs lone
+typeof (AlloyUnary    ONEOF     x          ) = typeof x
+typeof (AlloyUnary    SETOF     x          ) = typeof x
+typeof (AlloyUnary    EXACTLYOF x          ) = undefined -- review this
+typeof (AlloyUnary    NOT       _          ) = AlloyBool
+typeof (AlloyUnary    NO        _          ) = AlloyBool
+typeof (AlloyUnary    SOME      _          ) = AlloyBool
+typeof (AlloyUnary    LONE      _          ) = AlloyBool
+typeof (AlloyUnary    ONE       _          ) = AlloyBool
+typeof (AlloyUnary    TRANSPOSE x          ) = Product (reverse ys)
     where Product ys = typeof x
 typeof (AlloyUnary RCLOSURE    x) = typeof x
 typeof (AlloyUnary CLOSURE     x) = typeof x
@@ -147,10 +164,11 @@ typeof (AlloyITE    _                x _) = typeof x
 -- quantified expression
 typeof (AlloyQt     _                _ _) = AlloyBool
 -- let expression
-typeof (AlloyLet _ _ x) = typeof x
+typeof (AlloyLet    _                _ x) = typeof x
 
 
 joinType :: AlloyType -> AlloyType -> AlloyType
-joinType AlloyBool _ = error "Can not apply join to boolean"
-joinType _ AlloyBool = error "Can not apply join to boolean"
-joinType (Product xs) (Product ys) = Product ((excludeLast xs) ++ (excludeFirst ys))
+joinType AlloyBool _         = error "Can not apply join to boolean"
+joinType _         AlloyBool = error "Can not apply join to boolean"
+joinType (Product xs) (Product ys) =
+    Product ((excludeLast xs) ++ (excludeFirst ys))

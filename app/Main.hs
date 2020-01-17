@@ -3,7 +3,7 @@ import           Operators
 import           Alloy
 import           Translator
 
-a = Prim { isAbstract       = False
+a = PrimSig { isAbstract       = False
          , children         = []
          , parent           = Univ
          , primLabel        = "A"
@@ -11,7 +11,7 @@ a = Prim { isAbstract       = False
          , primFacts        = []
          }
 
-b = Prim { isAbstract       = False
+b = PrimSig { isAbstract       = False
          , children         = []
          , parent           = Univ
          , primLabel        = "B"
@@ -20,7 +20,7 @@ b = Prim { isAbstract       = False
          }
 
 printTranslation :: IO ()
-printTranslation = print (typeof  (AlloyBinary JOIN (Prime a) (Prime b)))
+printTranslation = print (typeof  (AlloyBinary JOIN (Signature a) (Signature b)))
 
 main :: IO ()
 main = printTranslation
