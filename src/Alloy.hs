@@ -65,7 +65,7 @@ data Sig
         subsetFacts :: [AlloyExpr]
     }
     | Univ | SigInt | None | SigString
-    deriving (Show, Eq)
+    deriving (Eq)
 
 isPrime :: Sig -> Bool
 isPrime SubsetSig{} = False
@@ -82,6 +82,9 @@ multiplicity SubsetSig { subsetMultiplicity = x } = x
 facts :: Sig -> [AlloyExpr]
 facts PrimSig { primFacts = x }     = x
 facts SubsetSig { subsetFacts = x } = x
+
+instance Show Sig where
+    show x = label x
 
 -- simple version
 data AlloyType = Product [Sig] | AlloyBool deriving (Show, Eq)
