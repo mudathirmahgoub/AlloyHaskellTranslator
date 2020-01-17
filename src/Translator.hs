@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Translator where
 import           Operators
 import           Alloy
@@ -5,40 +6,33 @@ import           Smt
 import           Env
 
 translateModel :: AlloyModel -> SmtProgram
-translateModel model = translateCommands program3 (commands model)
+translateModel model = program6
  where
   -- none, univAtom, univInt, intValue
-  program1 =
-    initializeProgram SmtProgram { sorts = [], functions = [], assertions = [] }
+  program1 = addFunctions emptyProgram [none, univAtom, idenAtom, univInt]
   program2 = translateSignatures program1 (signatures model)
   program3 = translateSignatureFacts program2 (signatures model)
   program4 = translateFacts program3 (facts model)
   -- axioms for none, univAtom, univInt, intValue
   program5 = addSpecialAssertions program4
-
-initializeProgram :: SmtProgram -> SmtProgram
-initializeProgram program = addFunctions program [none, univAtom, idenAtom, univInt]
-
-translateCommands :: SmtProgram -> [Command] -> SmtProgram
-translateCommands p xs = foldl translateCommand p xs
-
-translateCommand :: SmtProgram -> Command -> SmtProgram
-translateCommand p c = undefined
+  program6 = translateCommands program5 (commands model)
 
 translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatures p [] = p
-translateSignatures p xs =
-  let program = translateTopLevelSignatures p (filter isTopLevel xs)
-  in  translateOtherSignatures program (filter (not . isTopLevel) xs)
+translateSignatures p xs = program
+  where program = translateTopLevelSignatures p (filter isTopLevel xs)
 
 translateTopLevelSignatures :: SmtProgram -> [Sig] -> SmtProgram
 translateTopLevelSignatures p xs = foldl translateSignature p xs
 
-translateOtherSignatures :: SmtProgram -> [Sig] -> SmtProgram
-translateOtherSignatures p xs = foldl translateSignature p xs
-
 translateSignature :: SmtProgram -> Sig -> SmtProgram
-translateSignature p x = undefined
+translateSignature p Univ = p
+translateSignature p SigInt = p
+translateSignature p None = p
+translateSignature p SigString = undefined
+translateSignature p PrimSig{..} = program1
+  where program1 = addFunction p SmtFunction {name = label PrimSig{..}, inputSorts = [], outputSort = Set (Tuple [Atom]) , isOriginal = True}
+
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p xs = foldl translateSignatureFact p xs
@@ -58,6 +52,11 @@ translateFact program (Fact label alloyExpr) = addAssertion assertion program
 addSpecialAssertions :: SmtProgram -> SmtProgram
 addSpecialAssertions p = undefined
 
+translateCommands :: SmtProgram -> [Command] -> SmtProgram
+translateCommands p xs = foldl translateCommand p xs
+
+translateCommand :: SmtProgram -> Command -> SmtProgram
+translateCommand p c = undefined
 
 translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
 translate (p, env, Signature x             ) = (env, get env (label x))

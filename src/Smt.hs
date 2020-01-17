@@ -10,6 +10,8 @@ data SmtProgram
         assertions :: [Assertion]
     } deriving (Show, Eq)
 
+emptyProgram = SmtProgram { sorts = [], functions = [], assertions = [] }
+
 addSort :: Sort -> SmtProgram -> SmtProgram
 addSort s p = p { sorts = s : sorts p }
 
@@ -17,7 +19,7 @@ addFunction :: SmtProgram -> SmtFunction -> SmtProgram
 addFunction p f = p { functions = f : functions p }
 
 addFunctions :: SmtProgram -> [SmtFunction] -> SmtProgram
-addFunctions p fs = foldl addFunction p fs
+addFunctions = foldl addFunction
 
 addAssertion :: Assertion -> SmtProgram -> SmtProgram
 addAssertion a p = p { assertions = a : assertions p }
