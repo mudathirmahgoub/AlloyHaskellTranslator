@@ -4,145 +4,173 @@ import           Alloy
 import           Smt
 import           Env
 
--- declare :: (Env, AlloyExpr) -> (Env, SmtExpr)
--- declare (env, (Prime x)) = undefined 
--- declare x = error ("Can not declare " ++ (show x))
+translateModel :: AlloyModel -> SmtProgram
+translateModel model = translateCommands program2 (commands model)
+  where program1 = translateSignatures emptyProgram (signatures  model)
+        program2 = translateFacts program1 (facts model)
 
--- translate :: (Env, AlloyExpr) -> (Env, SmtExpr)
--- translate (env, (Prime x)) =
---   if contains env (label x) then (env, get env (label x)) else declare (env, (Prime x)) 
--- translate (env, (Subset x)              ) = undefined
--- | Field
-translate (env, (AlloyConstant name sig)) = case sig of
+translateCommands :: SmtProgram -> [Command] -> SmtProgram
+translateCommands p xs = foldl translateCommand p xs  
+
+translateCommand :: SmtProgram -> Command -> SmtProgram
+translateCommand p c = undefined 
+
+translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
+translateSignatures p [] = p
+translateSignatures p xs = let program = translateTopLevelSignatures p (filter isTopLevel xs)
+  in translateOtherSignatures program (filter (not.isTopLevel) xs)
+
+translateTopLevelSignatures :: SmtProgram -> [Sig] -> SmtProgram
+translateTopLevelSignatures p xs = foldl translateSignature p xs
+
+translateOtherSignatures :: SmtProgram -> [Sig] -> SmtProgram
+translateOtherSignatures p xs = foldl translateSignature p xs
+
+translateSignature :: SmtProgram -> Sig -> SmtProgram
+translateSignature p x = undefined 
+
+translateFacts :: SmtProgram -> [Fact] -> SmtProgram
+translateFacts p xs = foldl translateFact p xs
+
+translateFact :: SmtProgram -> Fact -> SmtProgram
+translateFact program (Fact label alloyExpr) = addAssertion assertion program
+  where assertion = Assertion label smtExpr
+        (_, smtExpr) = translate (program, [], alloyExpr)
+
+
+translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
+translate(p, env,  Signature x) = (env, get env (label x))
+-- Field
+translate(p, env,  (AlloyConstant name sig)) = case sig of
   SigInt -> (env, SmtIntConstant (read name))
   _      -> error ("Constant " ++ " is not supported")
-translate (env, (AlloyUnary SOMEOF x)   ) = undefined
-translate (env, (AlloyUnary LONEOF x)   ) = undefined
-translate (env, (AlloyUnary ONEOF x)    ) = undefined
-translate (env, (AlloyUnary SETOF x)    ) = undefined
-translate (env, (AlloyUnary EXACTLYOF x)) = undefined
-translate (env, (AlloyUnary NOT x)) =
-  (env, SmtUnary NOT (second (translate (env, x))))
-translate (env, (AlloyUnary NO _)       ) = undefined
-translate (env, (AlloyUnary SOME _)     ) = undefined
-translate (env, (AlloyUnary LONE _)     ) = undefined
-translate (env, (AlloyUnary ONE _)      ) = undefined
-translate (env, (AlloyUnary TRANSPOSE x)) = undefined
+translate(p, env,  (AlloyUnary SOMEOF x)   ) = undefined
+translate(p, env,  (AlloyUnary LONEOF x)   ) = undefined
+translate(p, env,  (AlloyUnary ONEOF x)    ) = undefined
+translate(p, env,  (AlloyUnary SETOF x)    ) = undefined
+translate(p, env,  (AlloyUnary EXACTLYOF x)) = undefined
+translate(p, env,  (AlloyUnary NOT x)) =
+  (env, SmtUnary NOT (second (translate(p, env,  x))))
+translate(p, env,  (AlloyUnary NO _)       ) = undefined
+translate(p, env,  (AlloyUnary SOME _)     ) = undefined
+translate(p, env,  (AlloyUnary LONE _)     ) = undefined
+translate(p, env,  (AlloyUnary ONE _)      ) = undefined
+translate(p, env,  (AlloyUnary TRANSPOSE x)) = undefined
   where Product ys = undefined
-translate (env, (AlloyUnary RCLOSURE x)   ) = undefined
-translate (env, (AlloyUnary CLOSURE x)    ) = undefined
-translate (env, (AlloyUnary CARDINALITY _)) = undefined
-translate (env, (AlloyUnary NOOP x)       ) = translate (env, x)
+translate(p, env,  (AlloyUnary RCLOSURE x)   ) = undefined
+translate(p, env,  (AlloyUnary CLOSURE x)    ) = undefined
+translate(p, env,  (AlloyUnary CARDINALITY _)) = undefined
+translate(p, env,  (AlloyUnary NOOP x)       ) = translate(p, env,  x)
 -- binary expressions
-translate (env, (AlloyBinary ARROW x y)   ) = undefined
+translate(p, env,  (AlloyBinary ARROW x y)   ) = undefined
  where
   Product xs = undefined
   Product ys = undefined
-translate (env, (AlloyBinary ANY_ARROW_SOME x y)  ) = undefined
-translate (env, (AlloyBinary ANY_ARROW_ONE x y)   ) = undefined
-translate (env, (AlloyBinary ANY_ARROW_LONE x y)  ) = undefined
-translate (env, (AlloyBinary SOME_ARROW_ANY x y)  ) = undefined
-translate (env, (AlloyBinary SOME_ARROW_SOME x y) ) = undefined
-translate (env, (AlloyBinary SOME_ARROW_ONE x y)  ) = undefined
-translate (env, (AlloyBinary SOME_ARROW_LONE x y) ) = undefined
-translate (env, (AlloyBinary ONE_ARROW_ANY x y)   ) = undefined
-translate (env, (AlloyBinary ONE_ARROW_SOME x y)  ) = undefined
-translate (env, (AlloyBinary ONE_ARROW_ONE x y)   ) = undefined
-translate (env, (AlloyBinary ONE_ARROW_LONE x y)  ) = undefined
-translate (env, (AlloyBinary LONE_ARROW_ANY x y)  ) = undefined
-translate (env, (AlloyBinary LONE_ARROW_SOME x y) ) = undefined
-translate (env, (AlloyBinary LONE_ARROW_ONE x y)  ) = undefined
-translate (env, (AlloyBinary LONE_ARROW_LONE x y) ) = undefined
-translate (env, (AlloyBinary ISSEQ_ARROW_LONE x y)) = undefined
-translate (env, (AlloyBinary JOIN x y)) =
+translate(p, env,  (AlloyBinary ANY_ARROW_SOME x y)  ) = undefined
+translate(p, env,  (AlloyBinary ANY_ARROW_ONE x y)   ) = undefined
+translate(p, env,  (AlloyBinary ANY_ARROW_LONE x y)  ) = undefined
+translate(p, env,  (AlloyBinary SOME_ARROW_ANY x y)  ) = undefined
+translate(p, env,  (AlloyBinary SOME_ARROW_SOME x y) ) = undefined
+translate(p, env,  (AlloyBinary SOME_ARROW_ONE x y)  ) = undefined
+translate(p, env,  (AlloyBinary SOME_ARROW_LONE x y) ) = undefined
+translate(p, env,  (AlloyBinary ONE_ARROW_ANY x y)   ) = undefined
+translate(p, env,  (AlloyBinary ONE_ARROW_SOME x y)  ) = undefined
+translate(p, env,  (AlloyBinary ONE_ARROW_ONE x y)   ) = undefined
+translate(p, env,  (AlloyBinary ONE_ARROW_LONE x y)  ) = undefined
+translate(p, env,  (AlloyBinary LONE_ARROW_ANY x y)  ) = undefined
+translate(p, env,  (AlloyBinary LONE_ARROW_SOME x y) ) = undefined
+translate(p, env,  (AlloyBinary LONE_ARROW_ONE x y)  ) = undefined
+translate(p, env,  (AlloyBinary LONE_ARROW_LONE x y) ) = undefined
+translate(p, env,  (AlloyBinary ISSEQ_ARROW_LONE x y)) = undefined
+translate(p, env,  (AlloyBinary JOIN x y)) =
   ( env
-  , SmtBinary JOIN (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary JOIN (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary DOMAIN x y)) = undefined
-translate (env, (AlloyBinary RANGE x y) ) = undefined
-translate (env, (AlloyBinary INTERSECT x y)) =
+translate(p, env,  (AlloyBinary DOMAIN x y)) = undefined
+translate(p, env,  (AlloyBinary RANGE x y) ) = undefined
+translate(p, env,  (AlloyBinary INTERSECT x y)) =
   ( env
   , SmtBinary INTERSECT
-              (second (translate (env, x)))
-              (second (translate (env, y)))
+              (second (translate(p, env,  x)))
+              (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary PLUSPLUS x _)) = undefined
-translate (env, (AlloyBinary PLUS x y)) =
+translate(p, env,  (AlloyBinary PLUSPLUS x _)) = undefined
+translate(p, env,  (AlloyBinary PLUS x y)) =
   ( env
-  , SmtBinary PLUS (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary PLUS (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary IPLUS x y) ) = undefined
-translate (env, (AlloyBinary MINUS x _) ) = undefined
-translate (env, (AlloyBinary IMINUS x y)) = undefined
-translate (env, (AlloyBinary MUL x y)   ) = undefined
-translate (env, (AlloyBinary DIV x y)   ) = undefined
-translate (env, (AlloyBinary REM x y)   ) = undefined
-translate (env, (AlloyBinary EQUALS x y)) =
+translate(p, env,  (AlloyBinary IPLUS x y) ) = undefined
+translate(p, env,  (AlloyBinary MINUS x _) ) = undefined
+translate(p, env,  (AlloyBinary IMINUS x y)) = undefined
+translate(p, env,  (AlloyBinary MUL x y)   ) = undefined
+translate(p, env,  (AlloyBinary DIV x y)   ) = undefined
+translate(p, env,  (AlloyBinary REM x y)   ) = undefined
+translate(p, env,  (AlloyBinary EQUALS x y)) =
   ( env
-  , SmtBinary EQUALS (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary EQUALS (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary NOT_EQUALS x y)) =
+translate(p, env,  (AlloyBinary NOT_EQUALS x y)) =
   ( env
   , SmtUnary
     NOT
     (SmtBinary EQUALS
-               (second (translate (env, x)))
-               (second (translate (env, y)))
+               (second (translate(p, env,  x)))
+               (second (translate(p, env,  y)))
     )
   )
-translate (env, (AlloyBinary IMPLIES x y)) =
+translate(p, env,  (AlloyBinary IMPLIES x y)) =
   ( env
   , SmtBinary IMPLIES
-              (second (translate (env, x)))
-              (second (translate (env, y)))
+              (second (translate(p, env,  x)))
+              (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary Less x y)) =
+translate(p, env,  (AlloyBinary Less x y)) =
   ( env
-  , SmtBinary Less (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary Less (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary LTE x y)) =
+translate(p, env,  (AlloyBinary LTE x y)) =
   ( env
-  , SmtBinary LTE (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary LTE (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary Greater x y)) =
+translate(p, env,  (AlloyBinary Greater x y)) =
   ( env
   , SmtBinary Greater
-              (second (translate (env, x)))
-              (second (translate (env, y)))
+              (second (translate(p, env,  x)))
+              (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary GTE x y)) =
+translate(p, env,  (AlloyBinary GTE x y)) =
   ( env
-  , SmtBinary GTE (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary GTE (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary NOT_LT x y) ) = undefined
-translate (env, (AlloyBinary NOT_LTE x y)) = undefined
-translate (env, (AlloyBinary NOT_GT x y) ) = undefined
-translate (env, (AlloyBinary NOT_GTE x y)) = undefined
-translate (env, (AlloyBinary SHL x y)    ) = undefined
-translate (env, (AlloyBinary SHA x y)    ) = undefined
-translate (env, (AlloyBinary SHR x y)    ) = undefined
-translate (env, (AlloyBinary IN x y)     ) = undefined
-translate (env, (AlloyBinary NOT_IN x y) ) = undefined
-translate (env, (AlloyBinary AND x y)) =
+translate(p, env,  (AlloyBinary NOT_LT x y) ) = undefined
+translate(p, env,  (AlloyBinary NOT_LTE x y)) = undefined
+translate(p, env,  (AlloyBinary NOT_GT x y) ) = undefined
+translate(p, env,  (AlloyBinary NOT_GTE x y)) = undefined
+translate(p, env,  (AlloyBinary SHL x y)    ) = undefined
+translate(p, env,  (AlloyBinary SHA x y)    ) = undefined
+translate(p, env,  (AlloyBinary SHR x y)    ) = undefined
+translate(p, env,  (AlloyBinary IN x y)     ) = undefined
+translate(p, env,  (AlloyBinary NOT_IN x y) ) = undefined
+translate(p, env,  (AlloyBinary AND x y)) =
   ( env
-  , SmtBinary AND (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary AND (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary OR x y)) =
+translate(p, env,  (AlloyBinary OR x y)) =
   ( env
-  , SmtBinary OR (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary OR (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
-translate (env, (AlloyBinary IFF x y)) =
+translate(p, env,  (AlloyBinary IFF x y)) =
   ( env
-  , SmtBinary IFF (second (translate (env, x))) (second (translate (env, y)))
+  , SmtBinary IFF (second (translate(p, env,  x))) (second (translate(p, env,  y)))
   )
 -- if then else expression
-translate (env, (AlloyITE c x y)) =
+translate(p, env,  (AlloyITE c x y)) =
   ( env
-  , SmtIte (second (translate (env, c)))
-           (second (translate (env, x)))
-           (second (translate (env, y)))
+  , SmtIte (second (translate(p, env,  c)))
+           (second (translate(p, env,  x)))
+           (second (translate(p, env,  y)))
   )
 -- quantified expression
-translate (env, (AlloyQt _ x y) ) = undefined
+translate(p, env,  (AlloyQt _ x y) ) = undefined
 -- let expression
-translate (env, (AlloyLet _ _ x)) = undefined
+translate(p, env,  (AlloyLet _ _ x)) = undefined

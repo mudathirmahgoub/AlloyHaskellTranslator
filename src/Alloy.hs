@@ -8,20 +8,23 @@ data AlloyModel
     = AlloyModel
     {
         signatures :: [Sig],
-        commands :: [Command],
-        globalFacts :: [AlloyExpr]
-    }
+        facts :: [Fact],
+        commands :: [Command]
+    } deriving (Show, Eq)
+
+data Fact = Fact String AlloyExpr deriving (Show, Eq)
 
 data Command
     = Run AlloyExpr Scope
     | Check AlloyExpr Scope
-
+    deriving (Show, Eq)
 data Scope
     = Scope
     {
         sig :: [Sig],
         isExact :: Bool
     }
+    deriving (Show, Eq)
 
 data AlloyExpr
     = Signature Sig
@@ -71,6 +74,11 @@ isPrime :: Sig -> Bool
 isPrime SubsetSig{} = False
 isPrime _           = True
 
+isTopLevel :: Sig -> Bool
+isTopLevel Univ                     = True
+isTopLevel (PrimSig { parent = x }) = (x == Univ)
+isTopLevel _                        = False
+
 label :: Sig -> String
 label PrimSig { primLabel = x }     = x
 label SubsetSig { subsetLabel = x } = x
@@ -79,9 +87,9 @@ multiplicity :: Sig -> UnaryOp
 multiplicity PrimSig { primMultiplicity = x }     = x
 multiplicity SubsetSig { subsetMultiplicity = x } = x
 
-facts :: Sig -> [AlloyExpr]
-facts PrimSig { primFacts = x }     = x
-facts SubsetSig { subsetFacts = x } = x
+sigfacts :: Sig -> [AlloyExpr]
+sigfacts PrimSig { primFacts = x }     = x
+sigfacts SubsetSig { subsetFacts = x } = x
 
 instance Show Sig where
     show x = label x
