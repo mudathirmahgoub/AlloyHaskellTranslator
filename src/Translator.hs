@@ -64,7 +64,20 @@ translateMultiplicity p PrimSig {..} = addAssertion assertion p
 
 
 translateParent :: SmtProgram -> Sig -> SmtProgram
-translateParent = undefined
+translateParent p PrimSig {..} = addAssertion assertion p
+ where
+  childVar  = getConstant p primLabel
+  parentVar = getConstant p (label parent)
+  subset    = SmtBinary Subset (Var childVar) (Var parentVar)
+  assertion = Assertion ("parent" ++ primLabel) subset
+
+translateParent p SubsetSig {..} = addAssertion assertion p
+ where
+  childVar   = getConstant p subsetLabel
+  parentVars = map (getConstant p . label) parents
+  function parentVar = SmtBinary Subset (Var childVar) (Var parentVar)
+  subsets   = SmtMultiArity And (map function parentVars)
+  assertion = Assertion ("parents" ++ subsetLabel) subsets
 
 translateChildren :: SmtProgram -> Sig -> SmtProgram
 translateChildren = undefined
