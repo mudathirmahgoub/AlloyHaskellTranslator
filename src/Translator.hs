@@ -7,14 +7,17 @@ import           Env
 translateModel :: AlloyModel -> SmtProgram
 translateModel model = translateCommands program3 (commands model)
  where
-  program1 = translateSpecialFunctions emptyProgram -- none, univAtom, univInt, intValue
+  -- none, univAtom, univInt, intValue
+  program1 =
+    initializeProgram SmtProgram { sorts = [], functions = [], assertions = [] }
   program2 = translateSignatures program1 (signatures model)
   program3 = translateSignatureFacts program2 (signatures model)
   program4 = translateFacts program3 (facts model)
-  program5 = translateSpecialAssertions program4 -- axioms for none, univAtom, univInt, intValue
+  -- axioms for none, univAtom, univInt, intValue
+  program5 = addSpecialAssertions program4
 
-translateSpecialFunctions :: SmtProgram -> SmtProgram
-translateSpecialFunctions p = undefined 
+initializeProgram :: SmtProgram -> SmtProgram
+initializeProgram program = addFunctions program [none, univAtom, idenAtom, univInt]
 
 translateCommands :: SmtProgram -> [Command] -> SmtProgram
 translateCommands p xs = foldl translateCommand p xs
@@ -52,8 +55,8 @@ translateFact program (Fact label alloyExpr) = addAssertion assertion program
   assertion    = Assertion label smtExpr
   (_, smtExpr) = translate (program, [], alloyExpr)
 
-translateSpecialAssertions :: SmtProgram -> SmtProgram
-translateSpecialAssertions p = undefined
+addSpecialAssertions :: SmtProgram -> SmtProgram
+addSpecialAssertions p = undefined
 
 
 translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
