@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1484ce22ceeaa5d288eab49f6c0eda01cc9383c994c1b67f16dfc71d6d13ec64
+-- hash: 0094934e6ac7277076887b4291c1693254b321cfa75a7b500eedcf087be13eff
 
 name:           AlloyHaskellTranslator
 version:        0.1.0.0
@@ -28,9 +28,10 @@ source-repository head
 library
   exposed-modules:
       Alloy
+      AlloyOperators
       Env
-      Operators
       Smt
+      SmtOperators
       Translator
       Utils
   other-modules:

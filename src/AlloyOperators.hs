@@ -1,6 +1,6 @@
-module Operators where
+module AlloyOperators where
 
-data UnaryOp
+data AlloyUnaryOp
     = SOMEOF -- some of
     | LONEOF -- lone of
     | ONEOF -- one of
@@ -17,13 +17,11 @@ data UnaryOp
     | CARDINALITY -- #
     | CAST2INT -- Int->int
     | CAST2SIGINT -- int->Int
-    | NOOP -- NOOP
-    | Singleton
-    | EmptySet
+    | NOOP -- NOOP  
     deriving (Show, Eq)
 
 
-data BinaryOp
+data AlloyBinaryOp
     = ARROW -- ->    
     | ANY_ARROW_SOME -- ->some    
     | ANY_ARROW_ONE -- ->one
@@ -74,19 +72,13 @@ data BinaryOp
     | IFF -- <=>
     deriving (Show, Eq)
 
-data Quantifier
+data AlloyQuantifier
     = All
     | No
     | Lone
     | One
     | Some
-    | Sum
-    | Exists
+    | Sum   
     | Comprehension
     deriving (Show, Eq)
 
-data MultiArity
-    = And
-    | Or
-    | MkTuple
-    deriving (Show, Eq)

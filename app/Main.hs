@@ -1,5 +1,5 @@
 module Main where
-import           Operators
+import           AlloyOperators
 import           Alloy
 import           Translator
 

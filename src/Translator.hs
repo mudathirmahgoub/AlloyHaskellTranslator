@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Translator where
-import           Operators
+import           AlloyOperators
+import           SmtOperators
 import           Alloy
 import           Smt
 import           Env
@@ -44,7 +45,9 @@ translateSignature p PrimSig {..} = program2
 
 
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
-translateMultiplicity p PrimSig {..} = addAssertion (Assertion "multiplicity constraint" smtExpr) p
+translateMultiplicity p PrimSig {..} = addAssertion
+  (Assertion "multiplicity constraint" smtExpr)
+  p
  where
   c      = getConstant p (label PrimSig { .. })
   s      = if isInt (Signature PrimSig { .. }) then UInt else Atom
@@ -52,13 +55,13 @@ translateMultiplicity p PrimSig {..} = addAssertion (Assertion "multiplicity con
   exists = SmtQuantified
     Exists
     [x]
-    (SmtBinary EQUALS
+    (SmtBinary Eq
                (Var c)
                (SmtUnary Singleton (SmtMultiArity MkTuple [Var x]))
     )
-  empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
+  empty   = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
   smtExpr = case (multiplicity PrimSig { .. }) of
-    ONEOF -> exists
+    ONEOF  -> exists
     LONEOF -> SmtMultiArity Or [exists, empty]
 
 translateParent :: SmtProgram -> Sig -> SmtProgram
@@ -103,22 +106,18 @@ translate (p, env, (AlloyUnary ONEOF x)    ) = undefined
 translate (p, env, (AlloyUnary SETOF x)    ) = undefined
 translate (p, env, (AlloyUnary EXACTLYOF x)) = undefined
 translate (p, env, (AlloyUnary NOT x)) =
-  (env, SmtUnary NOT (second (translate (p, env, x))))
+  (env, SmtUnary Not (second (translate (p, env, x))))
 translate (p, env, (AlloyUnary NO _)       ) = undefined
 translate (p, env, (AlloyUnary SOME _)     ) = undefined
 translate (p, env, (AlloyUnary LONE _)     ) = undefined
 translate (p, env, (AlloyUnary ONE _)      ) = undefined
 translate (p, env, (AlloyUnary TRANSPOSE x)) = undefined
-  where Product ys = undefined
 translate (p, env, (AlloyUnary RCLOSURE x)   ) = undefined
 translate (p, env, (AlloyUnary CLOSURE x)    ) = undefined
 translate (p, env, (AlloyUnary CARDINALITY _)) = undefined
 translate (p, env, (AlloyUnary NOOP x)       ) = translate (p, env, x)
 -- binary expressions
 translate (p, env, (AlloyBinary ARROW x y)   ) = undefined
- where
-  Product xs = undefined
-  Product ys = undefined
 translate (p, env, (AlloyBinary ANY_ARROW_SOME x y)  ) = undefined
 translate (p, env, (AlloyBinary ANY_ARROW_ONE x y)   ) = undefined
 translate (p, env, (AlloyBinary ANY_ARROW_LONE x y)  ) = undefined
@@ -137,7 +136,7 @@ translate (p, env, (AlloyBinary LONE_ARROW_LONE x y) ) = undefined
 translate (p, env, (AlloyBinary ISSEQ_ARROW_LONE x y)) = undefined
 translate (p, env, (AlloyBinary JOIN x y)) =
   ( env
-  , SmtBinary JOIN
+  , SmtBinary Join
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
@@ -145,14 +144,14 @@ translate (p, env, (AlloyBinary DOMAIN x y)) = undefined
 translate (p, env, (AlloyBinary RANGE x y) ) = undefined
 translate (p, env, (AlloyBinary INTERSECT x y)) =
   ( env
-  , SmtBinary INTERSECT
+  , SmtBinary Intersection
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
 translate (p, env, (AlloyBinary PLUSPLUS x _)) = undefined
 translate (p, env, (AlloyBinary PLUS x y)) =
   ( env
-  , SmtBinary PLUS
+  , SmtBinary Union
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
@@ -164,46 +163,46 @@ translate (p, env, (AlloyBinary DIV x y)   ) = undefined
 translate (p, env, (AlloyBinary REM x y)   ) = undefined
 translate (p, env, (AlloyBinary EQUALS x y)) =
   ( env
-  , SmtBinary EQUALS
+  , SmtBinary Eq
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
 translate (p, env, (AlloyBinary NOT_EQUALS x y)) =
   ( env
   , SmtUnary
-    NOT
-    (SmtBinary EQUALS
+    Not
+    (SmtBinary Eq
                (second (translate (p, env, x)))
                (second (translate (p, env, y)))
     )
   )
 translate (p, env, (AlloyBinary IMPLIES x y)) =
   ( env
-  , SmtBinary IMPLIES
+  , SmtBinary Implies
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
 translate (p, env, (AlloyBinary Less x y)) =
   ( env
-  , SmtBinary Less
+  , SmtBinary Lt
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
 translate (p, env, (AlloyBinary LTE x y)) =
   ( env
-  , SmtBinary LTE
+  , SmtBinary Lte
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
 translate (p, env, (AlloyBinary Greater x y)) =
   ( env
-  , SmtBinary Greater
+  , SmtBinary Gt
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
 translate (p, env, (AlloyBinary GTE x y)) =
   ( env
-  , SmtBinary GTE
+  , SmtBinary Gte
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
@@ -218,19 +217,19 @@ translate (p, env, (AlloyBinary IN x y)     ) = undefined
 translate (p, env, (AlloyBinary NOT_IN x y) ) = undefined
 translate (p, env, (AlloyBinary AND x y)) =
   ( env
-  , SmtBinary AND
-              (second (translate (p, env, x)))
-              (second (translate (p, env, y)))
+  , SmtMultiArity And
+              [(second (translate (p, env, x))),
+              (second (translate (p, env, y)))]
   )
 translate (p, env, (AlloyBinary OR x y)) =
   ( env
-  , SmtBinary OR
-              (second (translate (p, env, x)))
-              (second (translate (p, env, y)))
+  , SmtMultiArity Or
+              [(second (translate (p, env, x))),
+              (second (translate (p, env, y)))]
   )
 translate (p, env, (AlloyBinary IFF x y)) =
   ( env
-  , SmtBinary IFF
+  , SmtBinary Eq
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )

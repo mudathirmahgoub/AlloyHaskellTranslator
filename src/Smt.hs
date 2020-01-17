@@ -1,6 +1,6 @@
 module Smt where
 
-import           Operators
+import           SmtOperators
 
 data SmtProgram
     = SmtProgram
@@ -42,13 +42,13 @@ data SmtExpr
     = SmtIntConstant Int
     | Var Variable
     | SmtBoolConstant Bool
-    | SmtUnary UnaryOp SmtExpr
-    | SmtBinary BinaryOp SmtExpr SmtExpr
+    | SmtUnary SmtUnaryOp SmtExpr
+    | SmtBinary SmtBinaryOp SmtExpr SmtExpr
     | SmtIte SmtExpr SmtExpr SmtExpr
     | SmtLet Variable SmtExpr
-    | SmtQuantified Quantifier [Variable] SmtExpr
+    | SmtQuantified SmtQuantifier [Variable] SmtExpr
     | SortExpr Sort
-    | SmtMultiArity MultiArity [SmtExpr]
+    | SmtMultiArity SmtMultiArityOp [SmtExpr]
     deriving (Show, Eq)
 
 data Sort = IntSort | Atom | UInt | Tuple [Sort] | Set Sort deriving (Show, Eq)
