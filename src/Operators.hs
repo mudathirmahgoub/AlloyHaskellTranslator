@@ -88,5 +88,5 @@ data Quantifier
 data MultiArity
     = And
     | Or
-    | MkTuple   
+    | MkTuple
     deriving (Show, Eq)

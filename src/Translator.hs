@@ -26,26 +26,40 @@ translateTopLevelSignatures :: SmtProgram -> [Sig] -> SmtProgram
 translateTopLevelSignatures p xs = foldl translateSignature p xs
 
 translateSignature :: SmtProgram -> Sig -> SmtProgram
-translateSignature p Univ = p
-translateSignature p SigInt = p
-translateSignature p None = p
-translateSignature p SigString = undefined
-translateSignature p PrimSig{..} = program2
-  where program1 = addconstant p Variable {name = label PrimSig{..}, sort = Set (Tuple [Atom]) , isOriginal = True}
-        program2 = translateMultiplicity program1 PrimSig{..}
-        program3 = translateParent program2 PrimSig{..}
-        program4 = translateChildren program3 PrimSig{..}
+translateSignature p Univ         = p
+translateSignature p SigInt       = p
+translateSignature p None         = p
+translateSignature p SigString    = undefined
+translateSignature p PrimSig {..} = program2
+ where
+  program1 = addconstant
+    p
+    Variable { name       = label PrimSig { .. }
+             , sort       = Set (Tuple [Atom])
+             , isOriginal = True
+             }
+  program2 = translateMultiplicity program1 PrimSig { .. }
+  program3 = translateParent program2 PrimSig { .. }
+  program4 = translateChildren program3 PrimSig { .. }
 
 
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
-translateMultiplicity p PrimSig{..} = addAssertion assertion p  
-  where f = getConstant p (label PrimSig{..})  
-        s = if isInt (Signature PrimSig{..}) then UInt else Atom
-        x = Variable {name = "x", sort = s, isOriginal  = False}         
-        exists   = SmtQuantified Exists [x] (SmtBinary EQUALS (Var f) (SmtUnary Singleton (SmtMultiArity MkTuple [Var x])))
-        emptySet = SmtUnary EmptySet (SortExpr (Set (Tuple[s])))
-        assertion = case (multiplicity PrimSig{..}) of
-            ONEOF -> Assertion "multiplicity constraint" exists
+translateMultiplicity p PrimSig {..} = addAssertion (Assertion "multiplicity constraint" smtExpr) p
+ where
+  c      = getConstant p (label PrimSig { .. })
+  s      = if isInt (Signature PrimSig { .. }) then UInt else Atom
+  x      = Variable { name = "x", sort = s, isOriginal = False }
+  exists = SmtQuantified
+    Exists
+    [x]
+    (SmtBinary EQUALS
+               (Var c)
+               (SmtUnary Singleton (SmtMultiArity MkTuple [Var x]))
+    )
+  empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
+  smtExpr = case (multiplicity PrimSig { .. }) of
+    ONEOF -> exists
+    LONEOF -> SmtMultiArity Or [exists, empty]
 
 translateParent :: SmtProgram -> Sig -> SmtProgram
 translateParent = undefined

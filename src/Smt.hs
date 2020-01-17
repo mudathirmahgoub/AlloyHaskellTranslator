@@ -17,9 +17,9 @@ addSort s p = p { sorts = s : sorts p }
 
 getConstant :: SmtProgram -> String -> Variable
 getConstant p x = getByName (constants p) x
-    where 
-        getByName (f:fs) x = if name f == x then f else getByName fs x
-        getConstant _    x = error (x ++ " not found")
+  where
+    getByName (f : fs) x = if name f == x then f else getByName fs x
+    getConstant _ x = error (x ++ " not found")
 
 addconstant :: SmtProgram -> Variable -> SmtProgram
 addconstant p f = p { constants = f : constants p }
@@ -33,7 +33,7 @@ addAssertion a p = p { assertions = a : assertions p }
 data Variable
     = Variable
     {
-        name :: String,        
+        name :: String,
         sort :: Sort,
         isOriginal :: Bool -- is it original alloy name or auxiliary name?
     } deriving (Show, Eq)
@@ -56,22 +56,18 @@ data Sort = IntSort | Atom | UInt | Tuple [Sort] | Set Sort deriving (Show, Eq)
 data Assertion = Assertion String SmtExpr deriving (Show, Eq)
 
 
-none = Variable { name       = "none"                  
-                   , sort = Set (Tuple [Atom])
-                   , isOriginal = False
-                   }
+none =
+    Variable { name = "none", sort = Set (Tuple [Atom]), isOriginal = False }
 
-univAtom = Variable { name       = "univAtom"                       
-                       , sort = Set (Tuple [Atom])
-                       , isOriginal = False
-                       }
+univAtom = Variable { name       = "univAtom"
+                    , sort       = Set (Tuple [Atom])
+                    , isOriginal = False
+                    }
 
-idenAtom = Variable { name       = "idenAtom"                      
-                       , sort = Set (Tuple [Atom, Atom])
-                       , isOriginal = False
-                       }
+idenAtom = Variable { name       = "idenAtom"
+                    , sort       = Set (Tuple [Atom, Atom])
+                    , isOriginal = False
+                    }
 
-univInt = Variable { name       = "univInt"                      
-                      , sort = Set (Tuple [UInt])
-                      , isOriginal = False
-                      }
+univInt =
+    Variable { name = "univInt", sort = Set (Tuple [UInt]), isOriginal = False }
