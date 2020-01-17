@@ -19,13 +19,13 @@ getConstant :: SmtProgram -> String -> Variable
 getConstant p x = getByName (constants p) x
   where
     getByName (f : fs) x = if name f == x then f else getByName fs x
-    getConstant _ x = error (x ++ " not found")
+    getByName _ x = error (x ++ " not found")
 
-addconstant :: SmtProgram -> Variable -> SmtProgram
-addconstant p f = p { constants = f : constants p }
+addConstant :: SmtProgram -> Variable -> SmtProgram
+addConstant p f = p { constants = f : constants p }
 
-addconstants :: SmtProgram -> [Variable] -> SmtProgram
-addconstants = foldl addconstant
+addConstants :: SmtProgram -> [Variable] -> SmtProgram
+addConstants = foldl addConstant
 
 addAssertion :: Assertion -> SmtProgram -> SmtProgram
 addAssertion a p = p { assertions = a : assertions p }
@@ -50,6 +50,9 @@ data SmtExpr
     | SortExpr Sort
     | SmtMultiArity SmtMultiArityOp [SmtExpr]
     deriving (Show, Eq)
+
+smtTrue = SmtBoolConstant True
+smtFalse = SmtBoolConstant False
 
 data Sort = IntSort | Atom | UInt | Tuple [Sort] | Set Sort deriving (Show, Eq)
 

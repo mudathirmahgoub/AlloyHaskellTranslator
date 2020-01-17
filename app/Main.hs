@@ -2,27 +2,13 @@ module Main where
 import           AlloyOperators
 import           Alloy
 import           Translator
-
-a = PrimSig { isAbstract       = False
-            , children         = []
-            , parent           = Univ
-            , primLabel        = "A"
-            , primMultiplicity = ONEOF
-            , primFacts        = []
-            }
-
-b = PrimSig { isAbstract       = False
-            , children         = []
-            , parent           = Univ
-            , primLabel        = "B"
-            , primMultiplicity = ONEOF
-            , primFacts        = []
-            }
+import           Model
 
 printTranslation :: IO ()
 printTranslation = do
     print (typeof (AlloyBinary JOIN (Signature a) (Signature b)))
     print (typeof (Signature a))
+    print (translateModel alloyModel)
 
 main :: IO ()
 main = printTranslation

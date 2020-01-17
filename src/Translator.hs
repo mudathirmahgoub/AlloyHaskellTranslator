@@ -6,11 +6,12 @@ import           Alloy
 import           Smt
 import           Env
 
+import           Data.List
+
 translateModel :: AlloyModel -> SmtProgram
 translateModel model = program6
  where
-  -- none, univAtom, univInt, intValue
-  program1 = addconstants emptyProgram [none, univAtom, idenAtom, univInt]
+  program1 = declareSignatures emptyProgram (signatures model)
   program2 = translateSignatures program1 (signatures model)
   program3 = translateSignatureFacts program2 (signatures model)
   program4 = translateFacts program3 (facts model)
@@ -21,34 +22,46 @@ translateModel model = program6
 translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatures p [] = p
 translateSignatures p xs = program
-  where program = translateTopLevelSignatures p (filter isTopLevel xs)
+ where  
+  program = translateHierarchy program (filter isTopLevel xs)
 
-translateTopLevelSignatures :: SmtProgram -> [Sig] -> SmtProgram
-translateTopLevelSignatures p xs = foldl translateSignature p xs
+declareSignatures :: SmtProgram -> [Sig] -> SmtProgram
+declareSignatures p xs = foldl declareSignature p xs
+
+declareSignature :: SmtProgram -> Sig -> SmtProgram
+declareSignature p Univ      = addConstant p univAtom
+declareSignature p SigInt    = addConstant p univInt
+declareSignature p None      = addConstant p none
+declareSignature p SigString = undefined
+declareSignature p sig       = addConstant
+  p
+  Variable { name = label sig, sort = Set (Tuple [s]), isOriginal = True }
+  where s = if isInt (Signature sig) then UInt else Atom
+
+translateHierarchy :: SmtProgram -> [Sig] -> SmtProgram
+translateHierarchy p xs = foldl translateSignature p xs
 
 translateSignature :: SmtProgram -> Sig -> SmtProgram
 translateSignature p Univ         = p
 translateSignature p SigInt       = p
 translateSignature p None         = p
 translateSignature p SigString    = undefined
-translateSignature p PrimSig {..} = program2
+translateSignature p PrimSig {..} = program3
  where
-  program1 = addconstant
-    p
-    Variable { name       = label PrimSig { .. }
-             , sort       = Set (Tuple [Atom])
-             , isOriginal = True
-             }
-  program2 = translateMultiplicity program1 PrimSig { .. }
-  program3 = translateParent program2 PrimSig { .. }
-  program4 = translateChildren program3 PrimSig { .. }
+  program1 = translateMultiplicity p PrimSig { .. }
+  program2 = translateParent program1 PrimSig { .. }
+  program3 = translateDisjointChildren program2 PrimSig { .. }
 
+translateSignature p SubsetSig {..} = program2
+ where
+  program1 = translateMultiplicity p SubsetSig { .. }
+  program2 = translateParent program1 SubsetSig { .. }
 
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
-translateMultiplicity p PrimSig {..} = addAssertion assertion p
+translateMultiplicity p sig = addAssertion assertion p
  where
-  c           = getConstant p primLabel
-  s           = if isInt (Signature PrimSig { .. }) then UInt else Atom
+  c           = getConstant p (label sig)
+  s           = if isInt (Signature sig) then UInt else Atom
   x           = Variable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [Var x]))
   isSingleton = SmtBinary Eq (Var c) singleton
@@ -57,10 +70,10 @@ translateMultiplicity p PrimSig {..} = addAssertion assertion p
   existsOne   = SmtQuantified Exists [x] isSingleton
   existsSome  = SmtQuantified Exists [x] subset
   or          = SmtMultiArity Or [existsOne, empty]
-  assertion   = case (multiplicity PrimSig { .. }) of
-    ONEOF  -> Assertion ("one" ++ primLabel) existsOne
-    LONEOF -> Assertion ("one" ++ primLabel) or
-    SOMEOF -> Assertion ("one" ++ primLabel) existsSome
+  assertion   = case (multiplicity sig) of
+    ONEOF  -> Assertion ("one " ++ (label sig)) existsOne
+    LONEOF -> Assertion ("lone " ++ (label sig)) or
+    SOMEOF -> Assertion ("some " ++ (label sig)) existsSome
 
 
 translateParent :: SmtProgram -> Sig -> SmtProgram
@@ -69,7 +82,7 @@ translateParent p PrimSig {..} = addAssertion assertion p
   childVar  = getConstant p primLabel
   parentVar = getConstant p (label parent)
   subset    = SmtBinary Subset (Var childVar) (Var parentVar)
-  assertion = Assertion ("parent" ++ primLabel) subset
+  assertion = Assertion ("parent " ++ primLabel) subset
 
 translateParent p SubsetSig {..} = addAssertion assertion p
  where
@@ -77,16 +90,37 @@ translateParent p SubsetSig {..} = addAssertion assertion p
   parentVars = map (getConstant p . label) parents
   function parentVar = SmtBinary Subset (Var childVar) (Var parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
-  assertion = Assertion ("parents" ++ subsetLabel) subsets
+  assertion = Assertion ("parents " ++ subsetLabel) subsets
 
-translateChildren :: SmtProgram -> Sig -> SmtProgram
-translateChildren = undefined
+translateDisjointChildren :: SmtProgram -> Sig -> SmtProgram
+translateDisjointChildren p PrimSig {..} = addAssertion assertion p
+ where
+  function (x, y) = SmtBinary Eq
+                              empty
+                              (SmtBinary Intersection (Var xVar) (Var yVar))
+   where
+    xVar = getConstant p (label x)
+    yVar = getConstant p (label y)
+  disjointChildren zs = map function zs
+  sigSort = if isInt (Signature PrimSig { .. }) then UInt else Atom
+  empty   = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+  pairs =
+    [ (u, v)
+    | u <- children
+    , v <- children
+    , (findIndex (== u) children) < (findIndex (== v) children)
+    ]
+  and       = SmtMultiArity And (disjointChildren pairs)
+  assertion = Assertion ("disjoint children of " ++ primLabel) and
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
+translateSignatureFacts p [] = p
 translateSignatureFacts p xs = foldl translateSignatureFact p xs
 
 translateSignatureFact :: SmtProgram -> Sig -> SmtProgram
-translateSignatureFact p x = undefined
+translateSignatureFact p sig = case (sigfacts sig) of
+  []     -> p
+  x : xs -> undefined
 
 translateFacts :: SmtProgram -> [Fact] -> SmtProgram
 translateFacts p xs = foldl translateFact p xs
@@ -98,7 +132,7 @@ translateFact program (Fact label alloyExpr) = addAssertion assertion program
   (_, smtExpr) = translate (program, [], alloyExpr)
 
 addSpecialAssertions :: SmtProgram -> SmtProgram
-addSpecialAssertions p = undefined
+addSpecialAssertions p = p -- ToDo: change this later
 
 translateCommands :: SmtProgram -> [Command] -> SmtProgram
 translateCommands p xs = foldl translateCommand p xs

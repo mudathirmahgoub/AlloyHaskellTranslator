@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0094934e6ac7277076887b4291c1693254b321cfa75a7b500eedcf087be13eff
+-- hash: 685aaff1a87e816e810c1c2e75fdc71c50fb432f7879e6e258bf4a3327c6047b
 
 name:           AlloyHaskellTranslator
 version:        0.1.0.0
@@ -47,6 +47,7 @@ library
 executable AlloyHaskellTranslator-exe
   main-is: Main.hs
   other-modules:
+      Model
       Paths_AlloyHaskellTranslator
   hs-source-dirs:
       app

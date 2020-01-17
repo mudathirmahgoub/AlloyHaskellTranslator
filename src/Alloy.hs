@@ -3,6 +3,7 @@ module Alloy where
 
 import           AlloyOperators
 import           Utils
+import           Smt
 
 data AlloyModel
     = AlloyModel
@@ -53,7 +54,7 @@ data Sig
     = PrimSig
     {
         isAbstract:: Bool,
-        children:: [Sig],
+        children:: [Sig], -- only PrimSigs are returned as children
         parent:: Sig,
         primLabel:: String,
         primMultiplicity:: AlloyUnaryOp,
@@ -61,14 +62,16 @@ data Sig
     }
     | SubsetSig
     {
-        sigLabel:: String,
         parents:: [Sig],
         subsetLabel:: String,
         subsetMultiplicity:: AlloyUnaryOp,
         subsetFacts :: [AlloyExpr]
     }
     | Univ | SigInt | None | SigString
-    deriving (Eq)
+
+instance Eq Sig where
+    x == y = label x == label y
+   
 
 isPrime :: Sig -> Bool
 isPrime SubsetSig{} = False
@@ -80,6 +83,10 @@ isTopLevel (PrimSig { parent = x }) = (x == Univ)
 isTopLevel _                        = False
 
 label :: Sig -> String
+label Univ         = name univAtom
+label SigInt       = name univInt
+label None         = name none
+label SigString    = undefined
 label PrimSig { primLabel = x }     = x
 label SubsetSig { subsetLabel = x } = x
 
@@ -88,6 +95,10 @@ multiplicity PrimSig { primMultiplicity = x }     = x
 multiplicity SubsetSig { subsetMultiplicity = x } = x
 
 sigfacts :: Sig -> [AlloyExpr]
+sigfacts Univ         = []
+sigfacts SigInt       = []
+sigfacts None         = []
+sigfacts SigString    = []
 sigfacts PrimSig { primFacts = x }     = x
 sigfacts SubsetSig { subsetFacts = x } = x
 
