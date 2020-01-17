@@ -45,11 +45,9 @@ translateSignature p PrimSig {..} = program2
 
 
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
-translateMultiplicity p PrimSig {..} = addAssertion
-  (Assertion "multiplicity constraint" smtExpr)
-  p
+translateMultiplicity p PrimSig {..} = addAssertion assertion p
  where
-  c           = getConstant p (label PrimSig { .. })
+  c           = getConstant p primLabel
   s           = if isInt (Signature PrimSig { .. }) then UInt else Atom
   x           = Variable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [Var x]))
@@ -58,10 +56,11 @@ translateMultiplicity p PrimSig {..} = addAssertion
   empty       = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
   existsOne   = SmtQuantified Exists [x] isSingleton
   existsSome  = SmtQuantified Exists [x] subset
-  smtExpr     = case (multiplicity PrimSig { .. }) of
-    ONEOF  -> existsOne
-    LONEOF -> SmtMultiArity Or [existsOne, empty]
-    SOMEOF -> existsSome
+  or          = SmtMultiArity Or [existsOne, empty]
+  assertion   = case (multiplicity PrimSig { .. }) of
+    ONEOF  -> Assertion ("one" ++ primLabel) existsOne
+    LONEOF -> Assertion ("one" ++ primLabel) or
+    SOMEOF -> Assertion ("one" ++ primLabel) existsSome
 
 
 translateParent :: SmtProgram -> Sig -> SmtProgram
