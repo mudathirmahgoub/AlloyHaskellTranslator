@@ -9,7 +9,7 @@ translateModel :: AlloyModel -> SmtProgram
 translateModel model = program6
  where
   -- none, univAtom, univInt, intValue
-  program1 = addFunctions emptyProgram [none, univAtom, idenAtom, univInt]
+  program1 = addconstants emptyProgram [none, univAtom, idenAtom, univInt]
   program2 = translateSignatures program1 (signatures model)
   program3 = translateSignatureFacts program2 (signatures model)
   program4 = translateFacts program3 (facts model)
@@ -30,9 +30,28 @@ translateSignature p Univ = p
 translateSignature p SigInt = p
 translateSignature p None = p
 translateSignature p SigString = undefined
-translateSignature p PrimSig{..} = program1
-  where program1 = addFunction p SmtFunction {name = label PrimSig{..}, inputSorts = [], outputSort = Set (Tuple [Atom]) , isOriginal = True}
+translateSignature p PrimSig{..} = program2
+  where program1 = addconstant p Variable {name = label PrimSig{..}, sort = Set (Tuple [Atom]) , isOriginal = True}
+        program2 = translateMultiplicity program1 PrimSig{..}
+        program3 = translateParent program2 PrimSig{..}
+        program4 = translateChildren program3 PrimSig{..}
 
+
+translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
+translateMultiplicity p PrimSig{..} = addAssertion assertion p  
+  where f = getConstant p (label PrimSig{..})  
+        s = if isInt (Signature PrimSig{..}) then UInt else Atom
+        x = Variable {name = "x", sort = s, isOriginal  = False}         
+        exists   = SmtQuantified Exists [x] (SmtBinary EQUALS (Var f) (SmtUnary Singleton (SmtMultiArity MkTuple [Var x])))
+        emptySet = SmtUnary EmptySet (SortExpr (Set (Tuple[s])))
+        assertion = case (multiplicity PrimSig{..}) of
+            ONEOF -> Assertion "multiplicity constraint" exists
+
+translateParent :: SmtProgram -> Sig -> SmtProgram
+translateParent = undefined
+
+translateChildren :: SmtProgram -> Sig -> SmtProgram
+translateChildren = undefined
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p xs = foldl translateSignatureFact p xs

@@ -18,6 +18,8 @@ data UnaryOp
     | CAST2INT -- Int->int
     | CAST2SIGINT -- int->Int
     | NOOP -- NOOP
+    | Singleton
+    | EmptySet
     deriving (Show, Eq)
 
 
@@ -81,4 +83,10 @@ data Quantifier
     | Sum
     | Exists
     | Comprehension
+    deriving (Show, Eq)
+
+data MultiArity
+    = And
+    | Or
+    | MkTuple   
     deriving (Show, Eq)

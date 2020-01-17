@@ -98,6 +98,10 @@ instance Show Sig where
 data AlloyType = Product [Sig] | AlloyBool deriving (Show, Eq)
 
 typeof :: AlloyExpr -> AlloyType
+typeof (Signature Univ )= Product[Univ]
+typeof (Signature SigInt )= Product[SigInt]
+typeof (Signature None )= Product[None]
+typeof (Signature SigString )= Product[SigString]
 typeof (Signature PrimSig {..}             ) = Product [PrimSig { .. }]
 typeof (Signature SubsetSig { parents = x }) = Product x
 -- | Field
@@ -183,3 +187,9 @@ joinType AlloyBool _         = error "Can not apply join to boolean"
 joinType _         AlloyBool = error "Can not apply join to boolean"
 joinType (Product xs) (Product ys) =
     Product ((excludeLast xs) ++ (excludeFirst ys))
+
+
+isInt:: AlloyExpr -> Bool
+isInt x = case typeof x of 
+    Product[SigInt] -> True
+    _ -> False

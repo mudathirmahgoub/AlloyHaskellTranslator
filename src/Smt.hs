@@ -6,34 +6,37 @@ data SmtProgram
     = SmtProgram
     {
         sorts :: [Sort],
-        functions :: [SmtFunction],
+        constants :: [Variable],
         assertions :: [Assertion]
     } deriving (Show, Eq)
 
-emptyProgram = SmtProgram { sorts = [], functions = [], assertions = [] }
+emptyProgram = SmtProgram { sorts = [], constants = [], assertions = [] }
 
 addSort :: Sort -> SmtProgram -> SmtProgram
 addSort s p = p { sorts = s : sorts p }
 
-addFunction :: SmtProgram -> SmtFunction -> SmtProgram
-addFunction p f = p { functions = f : functions p }
+getConstant :: SmtProgram -> String -> Variable
+getConstant p x = getByName (constants p) x
+    where 
+        getByName (f:fs) x = if name f == x then f else getByName fs x
+        getConstant _    x = error (x ++ " not found")
 
-addFunctions :: SmtProgram -> [SmtFunction] -> SmtProgram
-addFunctions = foldl addFunction
+addconstant :: SmtProgram -> Variable -> SmtProgram
+addconstant p f = p { constants = f : constants p }
+
+addconstants :: SmtProgram -> [Variable] -> SmtProgram
+addconstants = foldl addconstant
 
 addAssertion :: Assertion -> SmtProgram -> SmtProgram
 addAssertion a p = p { assertions = a : assertions p }
 
-data SmtFunction
-    = SmtFunction
+data Variable
+    = Variable
     {
-        name :: String,
-        inputSorts :: [Sort],
-        outputSort :: Sort,
+        name :: String,        
+        sort :: Sort,
         isOriginal :: Bool -- is it original alloy name or auxiliary name?
     } deriving (Show, Eq)
-
-data SmtType = SmtInt | SmtAtom | Prod[SmtType] deriving (Show, Eq)
 
 data SmtExpr
     = SmtIntConstant Int
@@ -45,35 +48,30 @@ data SmtExpr
     | SmtLet Variable SmtExpr
     | SmtQuantified Quantifier [Variable] SmtExpr
     | SortExpr Sort
+    | SmtMultiArity MultiArity [SmtExpr]
     deriving (Show, Eq)
 
 data Sort = IntSort | Atom | UInt | Tuple [Sort] | Set Sort deriving (Show, Eq)
 
-data Variable = Variable String SmtType deriving (Show, Eq)
-
 data Assertion = Assertion String SmtExpr deriving (Show, Eq)
 
 
-none = SmtFunction { name       = "none"
-                   , inputSorts = []
-                   , outputSort = Set (Tuple [Atom])
+none = Variable { name       = "none"                  
+                   , sort = Set (Tuple [Atom])
                    , isOriginal = False
                    }
 
-univAtom = SmtFunction { name       = "univAtom"
-                       , inputSorts = []
-                       , outputSort = Set (Tuple [Atom])
+univAtom = Variable { name       = "univAtom"                       
+                       , sort = Set (Tuple [Atom])
                        , isOriginal = False
                        }
 
-idenAtom = SmtFunction { name       = "idenAtom"
-                       , inputSorts = []
-                       , outputSort = Set (Tuple [Atom, Atom])
+idenAtom = Variable { name       = "idenAtom"                      
+                       , sort = Set (Tuple [Atom, Atom])
                        , isOriginal = False
                        }
 
-univInt = SmtFunction { name       = "univInt"
-                      , inputSorts = []
-                      , outputSort = Set (Tuple [UInt])
+univInt = Variable { name       = "univInt"                      
+                      , sort = Set (Tuple [UInt])
                       , isOriginal = False
                       }
