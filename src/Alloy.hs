@@ -58,35 +58,37 @@ data Sig
         parent:: Sig,
         primLabel:: String,
         primMultiplicity:: AlloyUnaryOp,
-        primFacts :: [AlloyExpr]
+        primFacts :: [AlloyExpr],
+        primFields :: [SigField]
     }
     | SubsetSig
     {
         parents:: [Sig],
         subsetLabel:: String,
         subsetMultiplicity:: AlloyUnaryOp,
-        subsetFacts :: [AlloyExpr]
+        subsetFacts :: [AlloyExpr],
+        subsetFields :: [SigField]
     }
     | Univ | SigInt | None | SigString
 
 instance Eq Sig where
     x == y = label x == label y
-   
+
 
 isPrime :: Sig -> Bool
 isPrime SubsetSig{} = False
 isPrime _           = True
 
 isTopLevel :: Sig -> Bool
-isTopLevel Univ                     = True
+isTopLevel Univ                     = False -- ToDo: make it true
 isTopLevel (PrimSig { parent = x }) = (x == Univ)
 isTopLevel _                        = False
 
 label :: Sig -> String
-label Univ         = name univAtom
-label SigInt       = name univInt
-label None         = name none
-label SigString    = undefined
+label Univ                          = name univAtom
+label SigInt                        = name univInt
+label None                          = name none
+label SigString                     = undefined
 label PrimSig { primLabel = x }     = x
 label SubsetSig { subsetLabel = x } = x
 
@@ -94,11 +96,15 @@ multiplicity :: Sig -> AlloyUnaryOp
 multiplicity PrimSig { primMultiplicity = x }     = x
 multiplicity SubsetSig { subsetMultiplicity = x } = x
 
+fields :: Sig -> [SigField]
+fields PrimSig { primFields = xs }     = xs
+fields SubsetSig { subsetFields = xs } = xs
+
 sigfacts :: Sig -> [AlloyExpr]
-sigfacts Univ         = []
-sigfacts SigInt       = []
-sigfacts None         = []
-sigfacts SigString    = []
+sigfacts Univ                          = []
+sigfacts SigInt                        = []
+sigfacts None                          = []
+sigfacts SigString                     = []
 sigfacts PrimSig { primFacts = x }     = x
 sigfacts SubsetSig { subsetFacts = x } = x
 
@@ -116,25 +122,24 @@ typeof (Signature SigString                ) = Prod [SigString]
 typeof (Signature PrimSig {..}             ) = Prod [PrimSig { .. }]
 typeof (Signature SubsetSig { parents = x }) = Prod x
 -- | Field
-typeof (AlloyConstant name      sig        ) = Prod [sig]
-typeof (AlloyUnary    SOMEOF    x          ) = typeof x
-typeof (AlloyUnary    LONEOF    x          ) = typeof x -- review this vs lone
-typeof (AlloyUnary    ONEOF     x          ) = typeof x
-typeof (AlloyUnary    SETOF     x          ) = typeof x
-typeof (AlloyUnary    EXACTLYOF x          ) = undefined -- review this
-typeof (AlloyUnary    NOT       _          ) = AlloyBool
-typeof (AlloyUnary    NO        _          ) = AlloyBool
-typeof (AlloyUnary    SOME      _          ) = AlloyBool
-typeof (AlloyUnary    LONE      _          ) = AlloyBool
-typeof (AlloyUnary    ONE       _          ) = AlloyBool
-typeof (AlloyUnary    TRANSPOSE x          ) = Prod (reverse ys)
-    where Prod ys = typeof x
-typeof (AlloyUnary RCLOSURE    x) = typeof x
-typeof (AlloyUnary CLOSURE     x) = typeof x
-typeof (AlloyUnary CARDINALITY _) = Prod [SigInt]
-typeof (AlloyUnary NOOP        x) = typeof x
+typeof (AlloyConstant name        sig      ) = Prod [sig]
+typeof (AlloyUnary    SOMEOF      x        ) = typeof x
+typeof (AlloyUnary    LONEOF      x        ) = typeof x -- review this vs lone
+typeof (AlloyUnary    ONEOF       x        ) = typeof x
+typeof (AlloyUnary    SETOF       x        ) = typeof x
+typeof (AlloyUnary    EXACTLYOF   x        ) = undefined -- review this
+typeof (AlloyUnary    NOT         _        ) = AlloyBool
+typeof (AlloyUnary    NO          _        ) = AlloyBool
+typeof (AlloyUnary    SOME        _        ) = AlloyBool
+typeof (AlloyUnary    LONE        _        ) = AlloyBool
+typeof (AlloyUnary    ONE         _        ) = AlloyBool
+typeof (AlloyUnary TRANSPOSE x) = Prod (reverse ys) where Prod ys = typeof x
+typeof (AlloyUnary    RCLOSURE    x        ) = typeof x
+typeof (AlloyUnary    CLOSURE     x        ) = typeof x
+typeof (AlloyUnary    CARDINALITY _        ) = Prod [SigInt]
+typeof (AlloyUnary    NOOP        x        ) = typeof x
 -- binary expressions
-typeof (AlloyBinary ARROW x y   ) = Prod (xs ++ ys)
+typeof (AlloyBinary ARROW x y              ) = Prod (xs ++ ys)
   where
     Prod xs = typeof x
     Prod ys = typeof y
@@ -196,11 +201,10 @@ typeof (AlloyLet    _                _ x) = typeof x
 joinType :: AlloyType -> AlloyType -> AlloyType
 joinType AlloyBool _         = error "Can not apply join to boolean"
 joinType _         AlloyBool = error "Can not apply join to boolean"
-joinType (Prod xs) (Prod ys) =
-    Prod ((excludeLast xs) ++ (excludeFirst ys))
+joinType (Prod xs) (Prod ys) = Prod ((excludeLast xs) ++ (excludeFirst ys))
 
 
 isInt :: AlloyExpr -> Bool
 isInt x = case typeof x of
     Prod [SigInt] -> True
-    _                -> False
+    _             -> False

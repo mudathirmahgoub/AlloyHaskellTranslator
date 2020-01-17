@@ -23,7 +23,7 @@ translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatures p [] = p
 translateSignatures p xs = program
  where  
-  program = translateHierarchy program (filter isTopLevel xs)
+  program = translateHierarchy p (filter isTopLevel xs)
 
 declareSignatures :: SmtProgram -> [Sig] -> SmtProgram
 declareSignatures p xs = foldl declareSignature p xs
@@ -46,11 +46,12 @@ translateSignature p Univ         = p
 translateSignature p SigInt       = p
 translateSignature p None         = p
 translateSignature p SigString    = undefined
-translateSignature p PrimSig {..} = program3
+translateSignature p PrimSig {..} = program4
  where
   program1 = translateMultiplicity p PrimSig { .. }
   program2 = translateParent program1 PrimSig { .. }
   program3 = translateDisjointChildren program2 PrimSig { .. }
+  program4 = translateAbstract program3 PrimSig { .. }
 
 translateSignature p SubsetSig {..} = program2
  where
@@ -112,6 +113,9 @@ translateDisjointChildren p PrimSig {..} = addAssertion assertion p
     ]
   and       = SmtMultiArity And (disjointChildren pairs)
   assertion = Assertion ("disjoint children of " ++ primLabel) and
+
+translateAbstract :: SmtProgram -> Sig -> SmtProgram
+translateAbstract p _ = p
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p [] = p
