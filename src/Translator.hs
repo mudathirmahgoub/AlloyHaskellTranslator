@@ -52,11 +52,13 @@ translateSignature p PrimSig {..} = program4
   program2 = translateParent program1 PrimSig { .. }
   program3 = translateDisjointChildren program2 PrimSig { .. }
   program4 = translateAbstract program3 PrimSig { .. }
+  program5 = translateFields program4 PrimSig { .. }
 
-translateSignature p SubsetSig {..} = program2
+translateSignature p SubsetSig {..} = program3
  where
   program1 = translateMultiplicity p SubsetSig { .. }
   program2 = translateParent program1 SubsetSig { .. }
+  program3 = translateFields program2 SubsetSig {..}
 
 -- require sig is already defined in SMTScript p
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
@@ -129,6 +131,12 @@ translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
     equal     = SmtBinary Eq (Var sigVar) union
     assertion = Assertion ("Abstract " ++ primLabel) equal
 translateAbstract p sig = error ((label sig) ++ " is not a prime signature")
+
+translateFields :: SmtProgram -> Sig -> SmtProgram
+translateFields p sig = foldl translateField p (fields sig)
+
+translateField :: SmtProgram -> SigField -> SmtProgram
+translateField p field = undefined 
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p [] = p
