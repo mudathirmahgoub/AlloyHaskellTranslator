@@ -78,7 +78,7 @@ translateMultiplicity p sig = addAssertion assertion p
     ONEOF  -> Assertion ("one " ++ (label sig)) existsOne
     LONEOF -> Assertion ("lone " ++ (label sig)) or
     SOMEOF -> Assertion ("some " ++ (label sig)) existsSome
-    _      -> Assertion  "" smtTrue
+    _      -> Assertion "" smtTrue
 
 -- refactor this with subset 
 translateParent :: SmtProgram -> Sig -> SmtProgram
@@ -96,11 +96,7 @@ translateParent p SubsetSig {..} = addAssertion assertion p
   function parentVar = SmtBinary Subset (Var childVar) (Var parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
--- sig a extends b
--- sig a0, a1, a2 extends a
--- a0 & a1 = label instead of findIndex
--- a0 & a2 = phi
--- a1 & a2 = phi
+
 translateDisjointChildren :: SmtProgram -> Sig -> SmtProgram
 translateDisjointChildren p PrimSig {..} = addAssertion assertion p
  where
@@ -111,20 +107,28 @@ translateDisjointChildren p PrimSig {..} = addAssertion assertion p
     xVar = getConstant p (label x)
     yVar = getConstant p (label y)
   disjointChildren zs = map function zs
-  sigSort = if isInt (Signature PrimSig { .. }) then UInt else Atom
-  empty   = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
-  pairs =
-    [ (u, v)
-    | u <- children
-    , v <- children
-    , (label u) < (label v)
-    ]
+  sigSort   = if isInt (Signature PrimSig { .. }) then UInt else Atom
+  empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+  pairs     = [ (u, v) | u <- children, v <- children, (label u) < (label v) ]
   andExpr   = SmtMultiArity And (disjointChildren pairs)
   assertion = Assertion ("disjoint children of " ++ primLabel) andExpr
+translateDisjointChildren p sig =
+  error ((label sig) ++ " is not a prime signature")
 
 translateAbstract :: SmtProgram -> Sig -> SmtProgram
-translateAbstract p _ = p
-
+translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
+  False -> p
+  True  -> addAssertion assertion p
+   where
+    function x y = SmtBinary Union x y
+    sigVar    = getConstant p primLabel
+    union     = foldl function empty variables
+    variables = map (Var . getConstant p . label) children
+    sigSort   = if isInt (Signature PrimSig { .. }) then UInt else Atom
+    empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+    equal     = SmtBinary Eq (Var sigVar) union
+    assertion = Assertion ("Abstract " ++ primLabel) equal
+translateAbstract p sig = error ((label sig) ++ " is not a prime signature")
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p [] = p

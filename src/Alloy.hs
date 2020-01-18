@@ -80,7 +80,7 @@ isPrime SubsetSig{} = False
 isPrime _           = True
 
 isTopLevel :: Sig -> Bool
-isTopLevel Univ                     = False -- ToDo: make it true
+isTopLevel Univ                     = True
 isTopLevel (PrimSig { parent = x }) = (x == Univ)
 isTopLevel _                        = False
 

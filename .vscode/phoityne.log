@@ -106,3 +106,28 @@
 2020-01-17 11:45:25 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
 2020-01-17 11:45:37 [ThreadId 3] ERROR phoityne - "error: * Variable not in scope: program4 * Perhaps you meant `program1' (<no location info>)"
 2020-01-17 11:46:01 [ThreadId 3] ERROR phoityne - [disconnectRequestHandler] ghci quit error. <file descriptor: 5>: hPutChar: resource vanished (Broken pipe)
+2020-01-18 05:19:30 [ThreadId 3] ERROR phoityne - [deleteBreakPointOnGHCi] invalid delete break point. BreakPointData {nameBreakPointData = "Translator", srcPosBreakPointData = SourcePosition {filePathSourcePosition = "c:\\temp\\AlloyHaskellTranslator\\src\\Translator.hs", startLineNoSourcePosition = 63, startColNoSourcePosition = -1, endLineNoSourcePosition = -1, endColNoSourcePosition = -1}, breakNoBreakPointData = Nothing, conditionBreakPointData = Nothing, hitConditionBreakPointData = Nothing, hitCountBreakPointData = 0}
+2020-01-18 05:19:30 [ThreadId 3] ERROR phoityne - [deleteBreakPointOnGHCi] invalid delete break point. BreakPointData {nameBreakPointData = "Translator", srcPosBreakPointData = SourcePosition {filePathSourcePosition = "c:\\temp\\AlloyHaskellTranslator\\src\\Translator.hs", startLineNoSourcePosition = 93, startColNoSourcePosition = -1, endLineNoSourcePosition = -1, endColNoSourcePosition = -1}, breakNoBreakPointData = Nothing, conditionBreakPointData = Nothing, hitConditionBreakPointData = Nothing, hitCountBreakPointData = 0}
+2020-01-18 05:19:31 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:20:09 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:20:27 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:21:43 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:22:55 [ThreadId 3] ERROR phoityne - [disconnectRequestHandler] ghci quit error. <file descriptor: 5>: hPutChar: resource vanished (Broken pipe)
+2020-01-18 05:46:07 [ThreadId 3] ERROR phoityne - [deleteBreakPointOnGHCi] invalid delete break point. BreakPointData {nameBreakPointData = "Translator", srcPosBreakPointData = SourcePosition {filePathSourcePosition = "c:\\temp\\AlloyHaskellTranslator\\src\\Translator.hs", startLineNoSourcePosition = 63, startColNoSourcePosition = -1, endLineNoSourcePosition = -1, endColNoSourcePosition = -1}, breakNoBreakPointData = Nothing, conditionBreakPointData = Nothing, hitConditionBreakPointData = Nothing, hitCountBreakPointData = 0}
+2020-01-18 05:46:07 [ThreadId 3] ERROR phoityne - [deleteBreakPointOnGHCi] invalid delete break point. BreakPointData {nameBreakPointData = "Translator", srcPosBreakPointData = SourcePosition {filePathSourcePosition = "c:\\temp\\AlloyHaskellTranslator\\src\\Translator.hs", startLineNoSourcePosition = 93, startColNoSourcePosition = -1, endLineNoSourcePosition = -1, endColNoSourcePosition = -1}, breakNoBreakPointData = Nothing, conditionBreakPointData = Nothing, hitConditionBreakPointData = Nothing, hitCountBreakPointData = 0}
+2020-01-18 05:46:08 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:47:02 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:47:18 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:47:33 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:47:35 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:47:36 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:47:59 [ThreadId 3] ERROR phoityne - [deleteBreakPointOnGHCi] invalid delete break point. BreakPointData {nameBreakPointData = "Translator", srcPosBreakPointData = SourcePosition {filePathSourcePosition = "c:\\temp\\AlloyHaskellTranslator\\src\\Translator.hs", startLineNoSourcePosition = 63, startColNoSourcePosition = -1, endLineNoSourcePosition = -1, endColNoSourcePosition = -1}, breakNoBreakPointData = Nothing, conditionBreakPointData = Nothing, hitConditionBreakPointData = Nothing, hitCountBreakPointData = 0}
+2020-01-18 05:47:59 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:10 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:18 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:37 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:41 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:42 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:43 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:44 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
+2020-01-18 05:48:47 [ThreadId 3] ERROR phoityne - "error: Variable not in scope: x"
