@@ -36,7 +36,10 @@ data Variable
         name :: String,
         sort :: Sort,
         isOriginal :: Bool -- is it original alloy name or auxiliary name?
-    } deriving (Show, Eq)
+    } deriving (Eq)
+
+instance Show Variable where
+    show = name
 
 data SmtExpr
     = SmtIntConstant Int

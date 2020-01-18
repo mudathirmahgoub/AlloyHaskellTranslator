@@ -11,19 +11,18 @@ import           Data.List
 translateModel :: AlloyModel -> SmtProgram
 translateModel model = program6
  where
-  program1 = declareSignatures emptyProgram (signatures model)
-  program2 = translateSignatures program1 (signatures model)
-  program3 = translateSignatureFacts program2 (signatures model)
+  sigs     = signatures model
+  program1 = declareSignatures emptyProgram sigs
+  program2 = translateSignatures program1 sigs
+  program3 = translateSignatureFacts program2 sigs
   program4 = translateFacts program3 (facts model)
   -- axioms for none, univAtom, univInt, intValue
   program5 = addSpecialAssertions program4
   program6 = translateCommands program5 (commands model)
 
 translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
-translateSignatures p [] = p
-translateSignatures p xs = program
- where  
-  program = translateHierarchy p (filter isTopLevel xs)
+--translateSignatures p [] = p
+translateSignatures p xs = translateHierarchy p (filter isTopLevel xs)
 
 declareSignatures :: SmtProgram -> [Sig] -> SmtProgram
 declareSignatures p xs = foldl declareSignature p xs
@@ -48,7 +47,8 @@ translateSignature p None         = p
 translateSignature p SigString    = undefined
 translateSignature p PrimSig {..} = program4
  where
-  program1 = translateMultiplicity p PrimSig { .. }
+  program0 = foldl translateSignature p children
+  program1 = translateMultiplicity program0 PrimSig { .. }
   program2 = translateParent program1 PrimSig { .. }
   program3 = translateDisjointChildren program2 PrimSig { .. }
   program4 = translateAbstract program3 PrimSig { .. }
@@ -58,7 +58,10 @@ translateSignature p SubsetSig {..} = program2
   program1 = translateMultiplicity p SubsetSig { .. }
   program2 = translateParent program1 SubsetSig { .. }
 
+-- require sig is already defined in SMTScript p
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
+-- sig a
+-- use different from empty set
 translateMultiplicity p sig = addAssertion assertion p
  where
   c           = getConstant p (label sig)
@@ -75,8 +78,9 @@ translateMultiplicity p sig = addAssertion assertion p
     ONEOF  -> Assertion ("one " ++ (label sig)) existsOne
     LONEOF -> Assertion ("lone " ++ (label sig)) or
     SOMEOF -> Assertion ("some " ++ (label sig)) existsSome
+    _      -> Assertion  "" smtTrue
 
-
+-- refactor this with subset 
 translateParent :: SmtProgram -> Sig -> SmtProgram
 translateParent p PrimSig {..} = addAssertion assertion p
  where
@@ -92,7 +96,11 @@ translateParent p SubsetSig {..} = addAssertion assertion p
   function parentVar = SmtBinary Subset (Var childVar) (Var parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
-
+-- sig a extends b
+-- sig a0, a1, a2 extends a
+-- a0 & a1 = label instead of findIndex
+-- a0 & a2 = phi
+-- a1 & a2 = phi
 translateDisjointChildren :: SmtProgram -> Sig -> SmtProgram
 translateDisjointChildren p PrimSig {..} = addAssertion assertion p
  where
@@ -109,13 +117,14 @@ translateDisjointChildren p PrimSig {..} = addAssertion assertion p
     [ (u, v)
     | u <- children
     , v <- children
-    , (findIndex (== u) children) < (findIndex (== v) children)
+    , (label u) < (label v)
     ]
-  and       = SmtMultiArity And (disjointChildren pairs)
-  assertion = Assertion ("disjoint children of " ++ primLabel) and
+  andExpr   = SmtMultiArity And (disjointChildren pairs)
+  assertion = Assertion ("disjoint children of " ++ primLabel) andExpr
 
 translateAbstract :: SmtProgram -> Sig -> SmtProgram
 translateAbstract p _ = p
+
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p [] = p
