@@ -133,7 +133,13 @@ translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
 translateAbstract p sig = error ((label sig) ++ " is not a prime signature")
 
 translateFields :: SmtProgram -> Sig -> SmtProgram
-translateFields p sig = foldl translateField p (fields sig)
+translateFields p sig = program3
+  where     
+    sigFields = fields sig
+    program1 = foldl translateField p sigFields
+    program2 = translateDisjointFields program1
+    program3 = translateDisjoint2Fields program2
+
 
 translateField :: SmtProgram -> SigField -> SmtProgram
 translateField p field = undefined 
