@@ -29,7 +29,7 @@ data Scope
 
 data AlloyExpr
     = Signature Sig
-    | Field SigField
+    | Field Decl
     | AlloyConstant String Sig
     | AlloyUnary AlloyUnaryOp AlloyExpr
     | AlloyBinary AlloyBinaryOp AlloyExpr AlloyExpr
@@ -48,8 +48,6 @@ data Decl = Decl
     }
     deriving (Show, Eq)
 
-data SigField = SigField {fieldLabel:: String, decl:: Decl} deriving (Show, Eq)
-
 data Sig
     = PrimSig
     {
@@ -59,7 +57,7 @@ data Sig
         primLabel:: String,
         primMultiplicity:: AlloyUnaryOp,
         primFacts :: [AlloyExpr],
-        primFields :: [SigField]
+        primFields :: [Decl]
     }
     | SubsetSig
     {
@@ -67,7 +65,7 @@ data Sig
         subsetLabel:: String,
         subsetMultiplicity:: AlloyUnaryOp,
         subsetFacts :: [AlloyExpr],
-        subsetFields :: [SigField]
+        subsetFields :: [Decl]
     }
     | Univ | SigInt | None | SigString
 
@@ -80,9 +78,9 @@ isPrime SubsetSig{} = False
 isPrime _           = True
 
 isTopLevel :: Sig -> Bool
-isTopLevel Univ                     = True
-isTopLevel (PrimSig { parent = x }) = (x == Univ)
-isTopLevel _                        = False
+isTopLevel Univ                   = True
+isTopLevel PrimSig { parent = x } = x == Univ
+isTopLevel _                      = False
 
 label :: Sig -> String
 label Univ                          = name univAtom
@@ -96,7 +94,7 @@ multiplicity :: Sig -> AlloyUnaryOp
 multiplicity PrimSig { primMultiplicity = x }     = x
 multiplicity SubsetSig { subsetMultiplicity = x } = x
 
-fields :: Sig -> [SigField]
+fields :: Sig -> [Decl]
 fields PrimSig { primFields = xs }     = xs
 fields SubsetSig { subsetFields = xs } = xs
 
@@ -109,7 +107,7 @@ sigfacts PrimSig { primFacts = x }     = x
 sigfacts SubsetSig { subsetFacts = x } = x
 
 instance Show Sig where
-    show x = label x
+    show = label
 
 -- simple version
 data AlloyType = Prod [Sig] | AlloyBool deriving (Show, Eq)

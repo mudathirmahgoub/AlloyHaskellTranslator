@@ -58,7 +58,7 @@ translateSignature p SubsetSig {..} = program3
  where
   program1 = translateMultiplicity p SubsetSig { .. }
   program2 = translateParent program1 SubsetSig { .. }
-  program3 = translateFields program2 SubsetSig {..}
+  program3 = translateFields program2 SubsetSig { .. }
 
 -- require sig is already defined in SMTScript p
 translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
@@ -134,15 +134,20 @@ translateAbstract p sig = error ((label sig) ++ " is not a prime signature")
 
 translateFields :: SmtProgram -> Sig -> SmtProgram
 translateFields p sig = program3
-  where     
-    sigFields = fields sig
-    program1 = foldl translateField p sigFields
-    program2 = translateDisjointFields program1
-    program3 = translateDisjoint2Fields program2
+ where
+  sigFields = fields sig
+  program1  = declareFields p sigFields
+  program2  = translateDisjointFields program1 sigFields
+  program3  = translateDisjoint2Fields program2 sigFields
 
+declareFields :: SmtProgram -> [Decl] -> SmtProgram
+declareFields p sig = undefined
 
-translateField :: SmtProgram -> SigField -> SmtProgram
-translateField p field = undefined 
+translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
+translateDisjointFields p field = undefined
+
+translateDisjoint2Fields :: SmtProgram -> [Decl] -> SmtProgram
+translateDisjoint2Fields p field = undefined
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p [] = p
