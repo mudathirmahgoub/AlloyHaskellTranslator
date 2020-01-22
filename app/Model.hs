@@ -3,14 +3,25 @@ import           AlloyOperators
 import           Alloy
 import           Translator
 
-a = PrimSig { isAbstract       = True
-            , children         = [a0, a1]
-            , parent           = Univ
-            , primLabel        = "A"
-            , primMultiplicity = ONEOF
-            , primFacts        = []
-            , primFields       = []
-            }
+a = aSig
+  where
+    aSig = PrimSig
+        { isAbstract       = True
+        , children         = [a0, a1]
+        , parent           = Univ
+        , primLabel        = "A"
+        , primMultiplicity = ONEOF
+        , primFacts        = []
+        , primFields       = [ Decl
+                                   { names     = ["f1", "f2"]
+                                   , expr      = AlloyBinary ARROW
+                                                             (Signature aSig)
+                                                             (Signature aSig)
+                                   , disjoint  = True
+                                   , disjoint2 = True
+                                   }
+                             ]
+        }
 
 a0 = PrimSig { isAbstract       = False
              , children         = []
@@ -74,7 +85,8 @@ b2 = PrimSig { isAbstract       = False
              , primFields       = []
              }
 
-alloyModel = AlloyModel { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
-                        , facts      = []
-                        , commands   = []
-                        }
+alloyModel = AlloyModel
+    { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
+    , facts      = []
+    , commands   = []
+    }
