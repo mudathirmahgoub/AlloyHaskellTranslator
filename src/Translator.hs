@@ -45,7 +45,7 @@ translateSignature p Univ         = p
 translateSignature p SigInt       = p
 translateSignature p None         = p
 translateSignature p SigString    = undefined
-translateSignature p PrimSig {..} = program4
+translateSignature p PrimSig {..} = program5
  where
   program0 = foldl translateSignature p children
   program1 = translateMultiplicity program0 PrimSig { .. }
@@ -141,13 +141,19 @@ translateFields p sig = program3
   program3  = translateDisjoint2Fields program2 sigFields
 
 declareFields :: SmtProgram -> [Decl] -> SmtProgram
-declareFields p sig = undefined
+declareFields p decls = foldl declareField p decls
+
+declareField :: SmtProgram -> Decl -> SmtProgram
+declareField p decl = addConstant
+  p
+  Variable { name = "field", sort = Set (Tuple [Atom]), isOriginal = True }
+    where sorts = typeof expr
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
-translateDisjointFields p field = undefined
+translateDisjointFields p field = p -- ToDo: fix this
 
 translateDisjoint2Fields :: SmtProgram -> [Decl] -> SmtProgram
-translateDisjoint2Fields p field = undefined
+translateDisjoint2Fields p field = p -- ToDo: fix this
 
 translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
 translateSignatureFacts p [] = p
