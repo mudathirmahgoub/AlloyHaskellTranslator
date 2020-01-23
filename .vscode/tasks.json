@@ -6,7 +6,7 @@
         {
             "label": "build",
             "type": "shell",
-            "command": "stack build --pedantic"
+            "command": "stack build"
         },
         {
             "label": "exec",

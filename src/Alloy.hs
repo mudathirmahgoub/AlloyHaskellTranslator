@@ -48,6 +48,16 @@ data Decl = Decl
     }
     deriving (Show, Eq)
 
+splitDecl :: Decl -> [Decl]
+splitDecl Decl {..} =
+    [ Decl { names     = [x]
+           , expr      = expr
+           , disjoint  = disjoint
+           , disjoint2 = disjoint2
+           }
+    | x <- names
+    ]
+
 data Sig
     = PrimSig
     {
@@ -91,10 +101,18 @@ label PrimSig { primLabel = x }     = x
 label SubsetSig { subsetLabel = x } = x
 
 multiplicity :: Sig -> AlloyUnaryOp
-multiplicity PrimSig { primMultiplicity = x }     = x
+multiplicity Univ                             = SETOF
+multiplicity SigInt                           = SETOF
+multiplicity None                             = SETOF
+multiplicity SigString                        = SETOF
+multiplicity PrimSig { primMultiplicity = x } = x
 multiplicity SubsetSig { subsetMultiplicity = x } = x
 
 fields :: Sig -> [Decl]
+fields Univ                            = []
+fields SigInt                          = []
+fields None                            = []
+fields SigString                       = []
 fields PrimSig { primFields = xs }     = xs
 fields SubsetSig { subsetFields = xs } = xs
 
@@ -119,25 +137,29 @@ alloyType (Signature None                     ) = Prod [None]
 alloyType (Signature SigString                ) = Prod [SigString]
 alloyType (Signature PrimSig {..}             ) = Prod [PrimSig { .. }]
 alloyType (Signature SubsetSig { parents = x }) = Prod x
--- | Field
-alloyType (AlloyConstant name        sig      ) = Prod [sig]
-alloyType (AlloyUnary    SOMEOF      x        ) = alloyType x
-alloyType (AlloyUnary    LONEOF      x        ) = alloyType x -- review this vs lone
-alloyType (AlloyUnary    ONEOF       x        ) = alloyType x
-alloyType (AlloyUnary    SETOF       x        ) = alloyType x
-alloyType (AlloyUnary    EXACTLYOF   x        ) = undefined -- review this
-alloyType (AlloyUnary    NOT         _        ) = AlloyBool
-alloyType (AlloyUnary    NO          _        ) = AlloyBool
-alloyType (AlloyUnary    SOME        _        ) = AlloyBool
-alloyType (AlloyUnary    LONE        _        ) = AlloyBool
-alloyType (AlloyUnary    ONE         _        ) = AlloyBool
-alloyType (AlloyUnary TRANSPOSE x) = Prod (reverse ys) where Prod ys = alloyType x
-alloyType (AlloyUnary    RCLOSURE    x        ) = alloyType x
-alloyType (AlloyUnary    CLOSURE     x        ) = alloyType x
-alloyType (AlloyUnary    CARDINALITY _        ) = Prod [SigInt]
-alloyType (AlloyUnary    NOOP        x        ) = alloyType x
+alloyType (Field     Decl {..}                ) = alloyType expr
+-- unary
+alloyType (AlloyConstant _         sig        ) = Prod [sig]
+alloyType (AlloyUnary    SOMEOF    x          ) = alloyType x
+alloyType (AlloyUnary    LONEOF    x          ) = alloyType x -- review this vs lone
+alloyType (AlloyUnary    ONEOF     x          ) = alloyType x
+alloyType (AlloyUnary    SETOF     x          ) = alloyType x
+alloyType (AlloyUnary    EXACTLYOF _          ) = undefined -- review this
+alloyType (AlloyUnary    NOT       _          ) = AlloyBool
+alloyType (AlloyUnary    NO        _          ) = AlloyBool
+alloyType (AlloyUnary    SOME      _          ) = AlloyBool
+alloyType (AlloyUnary    LONE      _          ) = AlloyBool
+alloyType (AlloyUnary    ONE       _          ) = AlloyBool
+alloyType (AlloyUnary    TRANSPOSE x          ) = Prod (reverse ys)
+    where Prod ys = alloyType x
+alloyType (AlloyUnary RCLOSURE    x) = alloyType x
+alloyType (AlloyUnary CLOSURE     x) = alloyType x
+alloyType (AlloyUnary CARDINALITY _) = Prod [SigInt]
+alloyType (AlloyUnary CAST2INT    _) = undefined
+alloyType (AlloyUnary CAST2SIGINT _) = undefined
+alloyType (AlloyUnary NOOP        x) = alloyType x
 -- binary expressions
-alloyType (AlloyBinary ARROW x y              ) = Prod (xs ++ ys)
+alloyType (AlloyBinary ARROW x y   ) = Prod (xs ++ ys)
   where
     Prod xs = alloyType x
     Prod ys = alloyType y
@@ -156,10 +178,10 @@ alloyType (AlloyBinary LONE_ARROW_ANY   x y) = alloyType (AlloyBinary ARROW x y)
 alloyType (AlloyBinary LONE_ARROW_SOME  x y) = alloyType (AlloyBinary ARROW x y)
 alloyType (AlloyBinary LONE_ARROW_ONE   x y) = alloyType (AlloyBinary ARROW x y)
 alloyType (AlloyBinary LONE_ARROW_LONE  x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ISSEQ_ARROW_LONE x y) = undefined
-alloyType (AlloyBinary JOIN             x y) = joinType (alloyType x) (alloyType y)
-alloyType (AlloyBinary DOMAIN           x y) = alloyType y
-alloyType (AlloyBinary RANGE            x y) = alloyType y
+alloyType (AlloyBinary ISSEQ_ARROW_LONE _ _) = undefined
+alloyType (AlloyBinary JOIN x y) = joinType (alloyType x) (alloyType y)
+alloyType (AlloyBinary DOMAIN           _ y) = alloyType y
+alloyType (AlloyBinary RANGE            _ y) = alloyType y
 alloyType (AlloyBinary INTERSECT        x _) = alloyType x
 alloyType (AlloyBinary PLUSPLUS         x _) = alloyType x
 alloyType (AlloyBinary PLUS             x _) = alloyType x
@@ -180,9 +202,9 @@ alloyType (AlloyBinary NOT_LT           _ _) = AlloyBool
 alloyType (AlloyBinary NOT_LTE          _ _) = AlloyBool
 alloyType (AlloyBinary NOT_GT           _ _) = AlloyBool
 alloyType (AlloyBinary NOT_GTE          _ _) = AlloyBool
-alloyType (AlloyBinary SHL              x y) = undefined
-alloyType (AlloyBinary SHA              x y) = undefined
-alloyType (AlloyBinary SHR              x y) = undefined
+alloyType (AlloyBinary SHL              _ _) = undefined
+alloyType (AlloyBinary SHA              _ _) = undefined
+alloyType (AlloyBinary SHR              _ _) = undefined
 alloyType (AlloyBinary IN               _ _) = AlloyBool
 alloyType (AlloyBinary NOT_IN           _ _) = AlloyBool
 alloyType (AlloyBinary AND              _ _) = AlloyBool
