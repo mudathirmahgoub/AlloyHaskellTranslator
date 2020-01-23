@@ -34,8 +34,8 @@ declareSignature p None      = addConstant p none
 declareSignature p SigString = undefined
 declareSignature p sig       = addConstant
   p
-  Variable { name = label sig, sort = Set (Tuple [s]), isOriginal = True }
-  where s = if isInt (Signature sig) then UInt else Atom
+  Variable { name = label sig, sort = s, isOriginal = True }
+  where s = translateType (Prod [sig])
 
 translateHierarchy :: SmtProgram -> [Sig] -> SmtProgram
 translateHierarchy p xs = foldl translateSignature p xs
@@ -67,7 +67,7 @@ translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
 translateMultiplicity p sig = addAssertion assertion p
  where
   c           = getConstant p (label sig)
-  s           = if isInt (Signature sig) then UInt else Atom
+  s           = translateType (Prod [sig])
   x           = Variable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [Var x]))
   isSingleton = SmtBinary Eq (Var c) singleton
@@ -109,7 +109,7 @@ translateDisjointChildren p PrimSig {..} = addAssertion assertion p
     xVar = getConstant p (label x)
     yVar = getConstant p (label y)
   disjointChildren zs = map function zs
-  sigSort   = if isInt (Signature PrimSig { .. }) then UInt else Atom
+  sigSort   = translateType (Prod [PrimSig { .. }])
   empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
   pairs     = [ (u, v) | u <- children, v <- children, (label u) < (label v) ]
   andExpr   = SmtMultiArity And (disjointChildren pairs)
@@ -126,7 +126,7 @@ translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
     sigVar    = getConstant p primLabel
     union     = foldl function empty variables
     variables = map (Var . getConstant p . label) children
-    sigSort   = if isInt (Signature PrimSig { .. }) then UInt else Atom
+    sigSort   = translateType (Prod [PrimSig { .. }])
     empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
     equal     = SmtBinary Eq (Var sigVar) union
     assertion = Assertion ("Abstract " ++ primLabel) equal
@@ -144,10 +144,10 @@ declareFields :: SmtProgram -> [Decl] -> SmtProgram
 declareFields p decls = foldl declareField p decls
 
 declareField :: SmtProgram -> Decl -> SmtProgram
-declareField p Decl{..} = addConstant
+declareField p Decl {..} = addConstant
   p
-  Variable { name = "field", sort = Set (Tuple [Atom]), isOriginal = True }
-    where sorts = (alloyType expr)
+  Variable { name = "field", sort = s, isOriginal = True }
+  where s = translateType (alloyType expr)
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p field = p -- ToDo: fix this
@@ -332,3 +332,10 @@ translate (p, env, (AlloyITE c x y)) =
 translate (p, env, (AlloyQt _ x y) ) = undefined
 -- let expression
 translate (p, env, (AlloyLet _ _ x)) = undefined
+
+
+-- types
+translateType :: AlloyType -> Sort
+translateType (Prod xs) = Set (Tuple ys)
+  where ys = map (\x -> if isInt (Signature x) then UInt else Atom) xs
+translateType AlloyBool = SmtBool

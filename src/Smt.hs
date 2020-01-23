@@ -121,3 +121,4 @@ smtType (SmtIte    _      x _) = smtType x
 smtType (SmtQt     _      _ _) = SmtBool
 -- let expression
 smtType (SmtLet    _      _ x) = smtType x
+smtType x = error ("type of " ++ (show x) ++ " is not implemented")
