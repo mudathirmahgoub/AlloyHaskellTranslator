@@ -73,8 +73,8 @@ translateMultiplicity p sig = addAssertion assertion p
   isSingleton = SmtBinary Eq (Var c) singleton
   subset      = SmtBinary Subset (Var c) singleton
   empty       = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
-  existsOne   = SmtQuantified Exists [x] isSingleton
-  existsSome  = SmtQuantified Exists [x] subset
+  existsOne   = SmtQt Exists [x] isSingleton
+  existsSome  = SmtQt Exists [x] subset
   or          = SmtMultiArity Or [existsOne, empty]
   assertion   = case (multiplicity sig) of
     ONEOF  -> Assertion ("one " ++ (label sig)) existsOne
@@ -144,10 +144,10 @@ declareFields :: SmtProgram -> [Decl] -> SmtProgram
 declareFields p decls = foldl declareField p decls
 
 declareField :: SmtProgram -> Decl -> SmtProgram
-declareField p decl = addConstant
+declareField p Decl{..} = addConstant
   p
   Variable { name = "field", sort = Set (Tuple [Atom]), isOriginal = True }
-    where sorts = typeof expr
+    where sorts = (alloyType expr)
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p field = p -- ToDo: fix this

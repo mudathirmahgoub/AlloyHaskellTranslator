@@ -1,14 +1,18 @@
 module Main where
 import           AlloyOperators
 import           Alloy
+import           Smt
 import           Translator
 import           Model
 
 printTranslation :: IO ()
 printTranslation = do
-    print (typeof (AlloyBinary JOIN (Signature a) (Signature b)))
-    print (typeof (Signature a))
-    print (translateModel alloyModel)
+    print (alloyType (AlloyBinary JOIN (Signature a) (Signature b)))
+    print (alloyType (Signature a))
+    print translation
+    print (smtType (Var (getConstant translation "field")))
+    where
+        translation = translateModel alloyModel
 
 main :: IO ()
 main = printTranslation

@@ -112,88 +112,88 @@ instance Show Sig where
 -- simple version
 data AlloyType = Prod [Sig] | AlloyBool deriving (Show, Eq)
 
-typeof :: AlloyExpr -> AlloyType
-typeof (Signature Univ                     ) = Prod [Univ]
-typeof (Signature SigInt                   ) = Prod [SigInt]
-typeof (Signature None                     ) = Prod [None]
-typeof (Signature SigString                ) = Prod [SigString]
-typeof (Signature PrimSig {..}             ) = Prod [PrimSig { .. }]
-typeof (Signature SubsetSig { parents = x }) = Prod x
+alloyType :: AlloyExpr -> AlloyType
+alloyType (Signature Univ                     ) = Prod [Univ]
+alloyType (Signature SigInt                   ) = Prod [SigInt]
+alloyType (Signature None                     ) = Prod [None]
+alloyType (Signature SigString                ) = Prod [SigString]
+alloyType (Signature PrimSig {..}             ) = Prod [PrimSig { .. }]
+alloyType (Signature SubsetSig { parents = x }) = Prod x
 -- | Field
-typeof (AlloyConstant name        sig      ) = Prod [sig]
-typeof (AlloyUnary    SOMEOF      x        ) = typeof x
-typeof (AlloyUnary    LONEOF      x        ) = typeof x -- review this vs lone
-typeof (AlloyUnary    ONEOF       x        ) = typeof x
-typeof (AlloyUnary    SETOF       x        ) = typeof x
-typeof (AlloyUnary    EXACTLYOF   x        ) = undefined -- review this
-typeof (AlloyUnary    NOT         _        ) = AlloyBool
-typeof (AlloyUnary    NO          _        ) = AlloyBool
-typeof (AlloyUnary    SOME        _        ) = AlloyBool
-typeof (AlloyUnary    LONE        _        ) = AlloyBool
-typeof (AlloyUnary    ONE         _        ) = AlloyBool
-typeof (AlloyUnary TRANSPOSE x) = Prod (reverse ys) where Prod ys = typeof x
-typeof (AlloyUnary    RCLOSURE    x        ) = typeof x
-typeof (AlloyUnary    CLOSURE     x        ) = typeof x
-typeof (AlloyUnary    CARDINALITY _        ) = Prod [SigInt]
-typeof (AlloyUnary    NOOP        x        ) = typeof x
+alloyType (AlloyConstant name        sig      ) = Prod [sig]
+alloyType (AlloyUnary    SOMEOF      x        ) = alloyType x
+alloyType (AlloyUnary    LONEOF      x        ) = alloyType x -- review this vs lone
+alloyType (AlloyUnary    ONEOF       x        ) = alloyType x
+alloyType (AlloyUnary    SETOF       x        ) = alloyType x
+alloyType (AlloyUnary    EXACTLYOF   x        ) = undefined -- review this
+alloyType (AlloyUnary    NOT         _        ) = AlloyBool
+alloyType (AlloyUnary    NO          _        ) = AlloyBool
+alloyType (AlloyUnary    SOME        _        ) = AlloyBool
+alloyType (AlloyUnary    LONE        _        ) = AlloyBool
+alloyType (AlloyUnary    ONE         _        ) = AlloyBool
+alloyType (AlloyUnary TRANSPOSE x) = Prod (reverse ys) where Prod ys = alloyType x
+alloyType (AlloyUnary    RCLOSURE    x        ) = alloyType x
+alloyType (AlloyUnary    CLOSURE     x        ) = alloyType x
+alloyType (AlloyUnary    CARDINALITY _        ) = Prod [SigInt]
+alloyType (AlloyUnary    NOOP        x        ) = alloyType x
 -- binary expressions
-typeof (AlloyBinary ARROW x y              ) = Prod (xs ++ ys)
+alloyType (AlloyBinary ARROW x y              ) = Prod (xs ++ ys)
   where
-    Prod xs = typeof x
-    Prod ys = typeof y
-typeof (AlloyBinary ANY_ARROW_SOME   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ANY_ARROW_ONE    x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ANY_ARROW_LONE   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary SOME_ARROW_ANY   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary SOME_ARROW_SOME  x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary SOME_ARROW_ONE   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary SOME_ARROW_LONE  x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ONE_ARROW_ANY    x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ONE_ARROW_SOME   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ONE_ARROW_ONE    x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ONE_ARROW_LONE   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary LONE_ARROW_ANY   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary LONE_ARROW_SOME  x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary LONE_ARROW_ONE   x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary LONE_ARROW_LONE  x y) = typeof (AlloyBinary ARROW x y)
-typeof (AlloyBinary ISSEQ_ARROW_LONE x y) = undefined
-typeof (AlloyBinary JOIN             x y) = joinType (typeof x) (typeof y)
-typeof (AlloyBinary DOMAIN           x y) = typeof y
-typeof (AlloyBinary RANGE            x y) = typeof y
-typeof (AlloyBinary INTERSECT        x _) = typeof x
-typeof (AlloyBinary PLUSPLUS         x _) = typeof x
-typeof (AlloyBinary PLUS             x _) = typeof x
-typeof (AlloyBinary IPLUS            _ _) = Prod [SigInt]
-typeof (AlloyBinary MINUS            x _) = typeof x
-typeof (AlloyBinary IMINUS           _ _) = Prod [SigInt]
-typeof (AlloyBinary MUL              _ _) = Prod [SigInt]
-typeof (AlloyBinary DIV              _ _) = Prod [SigInt]
-typeof (AlloyBinary REM              _ _) = Prod [SigInt]
-typeof (AlloyBinary EQUALS           _ _) = AlloyBool
-typeof (AlloyBinary NOT_EQUALS       _ _) = AlloyBool
-typeof (AlloyBinary IMPLIES          _ _) = AlloyBool
-typeof (AlloyBinary Less             _ _) = AlloyBool
-typeof (AlloyBinary LTE              _ _) = AlloyBool
-typeof (AlloyBinary Greater          _ _) = AlloyBool
-typeof (AlloyBinary GTE              _ _) = AlloyBool
-typeof (AlloyBinary NOT_LT           _ _) = AlloyBool
-typeof (AlloyBinary NOT_LTE          _ _) = AlloyBool
-typeof (AlloyBinary NOT_GT           _ _) = AlloyBool
-typeof (AlloyBinary NOT_GTE          _ _) = AlloyBool
-typeof (AlloyBinary SHL              x y) = undefined
-typeof (AlloyBinary SHA              x y) = undefined
-typeof (AlloyBinary SHR              x y) = undefined
-typeof (AlloyBinary IN               _ _) = AlloyBool
-typeof (AlloyBinary NOT_IN           _ _) = AlloyBool
-typeof (AlloyBinary AND              _ _) = AlloyBool
-typeof (AlloyBinary OR               _ _) = AlloyBool
-typeof (AlloyBinary IFF              _ _) = AlloyBool
+    Prod xs = alloyType x
+    Prod ys = alloyType y
+alloyType (AlloyBinary ANY_ARROW_SOME   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ANY_ARROW_ONE    x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ANY_ARROW_LONE   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_ANY   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_SOME  x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_ONE   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_LONE  x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_ANY    x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_SOME   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_ONE    x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_LONE   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_ANY   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_SOME  x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_ONE   x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_LONE  x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ISSEQ_ARROW_LONE x y) = undefined
+alloyType (AlloyBinary JOIN             x y) = joinType (alloyType x) (alloyType y)
+alloyType (AlloyBinary DOMAIN           x y) = alloyType y
+alloyType (AlloyBinary RANGE            x y) = alloyType y
+alloyType (AlloyBinary INTERSECT        x _) = alloyType x
+alloyType (AlloyBinary PLUSPLUS         x _) = alloyType x
+alloyType (AlloyBinary PLUS             x _) = alloyType x
+alloyType (AlloyBinary IPLUS            _ _) = Prod [SigInt]
+alloyType (AlloyBinary MINUS            x _) = alloyType x
+alloyType (AlloyBinary IMINUS           _ _) = Prod [SigInt]
+alloyType (AlloyBinary MUL              _ _) = Prod [SigInt]
+alloyType (AlloyBinary DIV              _ _) = Prod [SigInt]
+alloyType (AlloyBinary REM              _ _) = Prod [SigInt]
+alloyType (AlloyBinary EQUALS           _ _) = AlloyBool
+alloyType (AlloyBinary NOT_EQUALS       _ _) = AlloyBool
+alloyType (AlloyBinary IMPLIES          _ _) = AlloyBool
+alloyType (AlloyBinary Less             _ _) = AlloyBool
+alloyType (AlloyBinary LTE              _ _) = AlloyBool
+alloyType (AlloyBinary Greater          _ _) = AlloyBool
+alloyType (AlloyBinary GTE              _ _) = AlloyBool
+alloyType (AlloyBinary NOT_LT           _ _) = AlloyBool
+alloyType (AlloyBinary NOT_LTE          _ _) = AlloyBool
+alloyType (AlloyBinary NOT_GT           _ _) = AlloyBool
+alloyType (AlloyBinary NOT_GTE          _ _) = AlloyBool
+alloyType (AlloyBinary SHL              x y) = undefined
+alloyType (AlloyBinary SHA              x y) = undefined
+alloyType (AlloyBinary SHR              x y) = undefined
+alloyType (AlloyBinary IN               _ _) = AlloyBool
+alloyType (AlloyBinary NOT_IN           _ _) = AlloyBool
+alloyType (AlloyBinary AND              _ _) = AlloyBool
+alloyType (AlloyBinary OR               _ _) = AlloyBool
+alloyType (AlloyBinary IFF              _ _) = AlloyBool
 -- if then else expression
-typeof (AlloyITE    _                x _) = typeof x
+alloyType (AlloyITE    _                x _) = alloyType x
 -- quantified expression
-typeof (AlloyQt     _                _ _) = AlloyBool
+alloyType (AlloyQt     _                _ _) = AlloyBool
 -- let expression
-typeof (AlloyLet    _                _ x) = typeof x
+alloyType (AlloyLet    _                _ x) = alloyType x
 
 
 joinType :: AlloyType -> AlloyType -> AlloyType
@@ -203,6 +203,6 @@ joinType (Prod xs) (Prod ys) = Prod ((excludeLast xs) ++ (excludeFirst ys))
 
 
 isInt :: AlloyExpr -> Bool
-isInt x = case typeof x of
+isInt x = case alloyType x of
     Prod [SigInt] -> True
     _             -> False
