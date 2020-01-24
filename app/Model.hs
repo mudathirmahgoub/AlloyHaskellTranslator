@@ -13,7 +13,7 @@ a = aSig
     , primMultiplicity = ONEOF
     , primFacts        = []
     , primFields       = [ Decl
-                             { names     = ["A/f1", "A/f2"]
+                             { names     = [f1, f2]
                              , expr      = AlloyBinary ARROW
                                                        (Signature aSig)
                                                        (Signature aSig)
@@ -22,6 +22,9 @@ a = aSig
                              }
                          ]
     }
+
+f1 = AlloyVariable "A/f1" (Prod [a, a])
+f2 = AlloyVariable "A/f2" (Prod [a, a])
 
 a0 = PrimSig { isAbstract       = False
              , children         = []

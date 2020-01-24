@@ -43,15 +43,20 @@ data AlloyExpr
     | AlloyLet AlloyVariable AlloyExpr AlloyExpr
     deriving (Show, Eq)
 
--- Decl has field expr to support multiplicity constraints
 data Decl = Decl
     {
-        names :: [String] ,
-        expr:: AlloyExpr,
+        names :: [AlloyVariable] ,
+        expr:: AlloyExpr, -- implies multiplicity constraints
         disjoint:: Bool,
         disjoint2:: Bool
     }
     deriving (Show, Eq)
+
+declNames :: Decl -> [String]
+declNames Decl {..} = getNames names
+  where
+    getNames []       = []
+    getNames (x : xs) = n : (getNames xs) where (AlloyVariable n _) = x
 
 splitDecls :: [Decl] -> [Decl]
 splitDecls decls = concat (map splitDecl decls)

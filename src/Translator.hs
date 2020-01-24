@@ -146,7 +146,7 @@ translateFields p sig = program4
 declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
 declareField sig p Decl {..} = addConstant p constant
  where  
-  constant = SmtVariable { name = concat names, sort = smtSort, isOriginal = True }
+  constant = SmtVariable { name = concat (declNames Decl {..}), sort = smtSort, isOriginal = True }
   smtSort  = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
 translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram
@@ -154,12 +154,13 @@ translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram
 -- all this: A | let s = this.field | s in expr
 translateFieldMultiplicity sig p Decl {..} = p
   where
-    fieldVar    = getConstant p (concat names)
+    fieldVar    = getConstant p (concat (declNames Decl {..}))
     this = AlloyVariable "this" (Prod [sig])
     thisJoinField = AlloyBinary JOIN (AlloyVar this) (Field Decl {..})
     s = AlloyVariable "s" (alloyType thisJoinField)
     sInExpr = AlloyBinary IN (AlloyVar s) expr
     alloyLet = AlloyLet s thisJoinField sInExpr
+    decl = Decl {names = [s], expr = Signature sig, disjoint = False, disjoint2 = False}
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p _ = p -- ToDo: fix this
