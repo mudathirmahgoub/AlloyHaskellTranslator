@@ -29,8 +29,12 @@ addConstant p f = p { constants = f : constants p }
 addConstants :: SmtProgram -> [SmtVariable] -> SmtProgram
 addConstants = foldl addConstant
 
-addAssertion :: Assertion -> SmtProgram -> SmtProgram
-addAssertion a p = p { assertions = a : assertions p }
+addAssertion :: SmtProgram -> Assertion -> SmtProgram
+addAssertion p a = p { assertions = a : assertions p }
+
+
+addAssertions :: SmtProgram -> [Assertion] -> SmtProgram
+addAssertions = foldl addAssertion
 
 data SmtVariable
     = SmtVariable

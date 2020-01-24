@@ -62,7 +62,7 @@ translateSignature p SubsetSig {..} = program3
 translateSigMultiplicity :: SmtProgram -> Sig -> SmtProgram
 -- sig a
 -- use different from empty set
-translateSigMultiplicity p sig = addAssertion assertion p
+translateSigMultiplicity p sig = addAssertion p assertion
  where
   c           = getConstant p (label sig)
   s           = translateType (Prod [sig])
@@ -82,14 +82,14 @@ translateSigMultiplicity p sig = addAssertion assertion p
 
 -- refactor this with subset 
 translateParent :: SmtProgram -> Sig -> SmtProgram
-translateParent p PrimSig {..} = addAssertion assertion p
+translateParent p PrimSig {..} = addAssertion p assertion
  where
   childVar  = getConstant p primLabel
   parentVar = getConstant p (label parent)
   subset    = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   assertion = Assertion ("parent " ++ primLabel) subset
 
-translateParent p SubsetSig {..} = addAssertion assertion p
+translateParent p SubsetSig {..} = addAssertion p assertion
  where
   childVar   = getConstant p subsetLabel
   parentVars = map (getConstant p . label) parents
@@ -101,11 +101,12 @@ translateParent _ _ = undefined
 
 
 translateDisjointChildren :: SmtProgram -> Sig -> SmtProgram
-translateDisjointChildren p PrimSig {..} = addAssertion assertion p
+translateDisjointChildren p PrimSig {..} = addAssertion p assertion
  where
-  function (x, y) = SmtBinary Eq
-                              empty
-                              (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
+  function (x, y) = SmtBinary
+    Eq
+    empty
+    (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
     xVar = getConstant p (label x)
     yVar = getConstant p (label y)
@@ -121,7 +122,7 @@ translateDisjointChildren _ sig =
 translateAbstract :: SmtProgram -> Sig -> SmtProgram
 translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
   False -> p
-  True  -> addAssertion assertion p
+  True  -> addAssertion p assertion
    where
     function x y = SmtBinary Union x y
     sigVar    = getConstant p primLabel
@@ -136,31 +137,41 @@ translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 translateFields :: SmtProgram -> Sig -> SmtProgram
 translateFields p sig = program4
  where
-  groups = fields sig
-  individuals = splitDecls groups 
-  program1  = foldl (declareField sig) p individuals  
-  program2  = foldl (translateFieldMultiplicity sig) program1 individuals
-  program3  = translateDisjointFields program2 groups
-  program4  = translateDisjoint2Fields program3 individuals
+  groups      = fields sig
+  individuals = splitDecls groups
+  program1    = foldl (declareField sig) p individuals
+  program2    = foldl (translateFieldMultiplicity sig) program1 individuals
+  program3    = translateDisjointFields program2 groups
+  program4    = translateDisjoint2Fields program3 individuals
 
 declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
 declareField sig p Decl {..} = addConstant p constant
- where  
-  constant = SmtVariable { name = concat (declNames Decl {..}), sort = smtSort, isOriginal = True }
-  smtSort  = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
+ where
+  constant = SmtVariable { name       = concat (declNames Decl { .. })
+                         , sort       = smtSort
+                         , isOriginal = True
+                         }
+  smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
 translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram
 -- Sig A {field: expr}
 -- all this: A | let s = this.field | s in expr
 translateFieldMultiplicity sig p Decl {..} = p
-  where
-    fieldVar    = getConstant p (concat (declNames Decl {..}))
-    this = AlloyVariable "this" (Prod [sig])
-    thisJoinField = AlloyBinary JOIN (AlloyVar this) (Field Decl {..})
-    s = AlloyVariable "s" (alloyType thisJoinField)
-    sInExpr = AlloyBinary IN (AlloyVar s) expr
-    alloyLet = AlloyLet s thisJoinField sInExpr
-    decl = Decl {names = [s], expr = Signature sig, disjoint = False, disjoint2 = False}
+ where
+  fieldVar      = getConstant p (concat (declNames Decl { .. }))
+  this          = AlloyVariable "this" (Prod [sig])
+  thisJoinField = AlloyBinary JOIN (AlloyVar this) (Field Decl { .. })
+  s             = AlloyVariable "s" (alloyType thisJoinField)
+  sInExpr       = AlloyBinary IN (AlloyVar s) expr
+  alloyLet      = AlloyLet s thisJoinField sInExpr
+  decl          = Decl { names     = [s]
+                       , expr      = Signature sig
+                       , disjoint  = False
+                       , disjoint2 = False
+                       }
+  all           = AlloyQt All [decl] alloyLet
+  smtMultiplicity = smtExpr where (_, smtExpr) = translate (p, [], all)  
+  multiplicityAssertion = Assertion ((show fieldVar) ++ "multiplicity") smtMultiplicity  
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p _ = p -- ToDo: fix this
@@ -181,7 +192,7 @@ translateFacts :: SmtProgram -> [Fact] -> SmtProgram
 translateFacts p xs = foldl translateFact p xs
 
 translateFact :: SmtProgram -> Fact -> SmtProgram
-translateFact program (Fact name alloyExpr) = addAssertion assertion program
+translateFact program (Fact name alloyExpr) = addAssertion program assertion
  where
   assertion    = Assertion name smtExpr
   (_, smtExpr) = translate (program, [], alloyExpr)
