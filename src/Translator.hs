@@ -140,7 +140,7 @@ translateFields p sig = program4
   groups      = fields sig
   individuals = splitDecls groups
   program1    = foldl (declareField sig) p individuals
-  program2    = foldl (translateFieldMultiplicity sig) program1 individuals
+  program2    = foldl (translateField sig) program1 individuals
   program3    = translateDisjointFields program2 groups
   program4    = translateDisjoint2Fields program3 individuals
 
@@ -153,14 +153,16 @@ declareField sig p Decl {..} = addConstant p constant
                          }
   smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
-translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram
+translateField :: Sig -> SmtProgram -> Decl -> SmtProgram
 -- Sig A {field: expr}
 -- all this: A | let s = this.field | s in expr
-translateFieldMultiplicity sig p Decl {..} = p
+-- field in (A -> removeMultiplicity[expr]) // create a separate function??
+translateField sig p Decl {..} = p
  where
   fieldVar      = getConstant p (concat (declNames Decl { .. }))
   this          = AlloyVariable "this" (Prod [sig])
-  thisJoinField = AlloyBinary JOIN (AlloyVar this) (Field Decl { .. })
+  thisExpr      = AlloyVar this
+  thisJoinField = AlloyBinary JOIN thisExpr (Field Decl { .. })
   s             = AlloyVariable "s" (alloyType thisJoinField)
   sInExpr       = AlloyBinary IN (AlloyVar s) expr
   alloyLet      = AlloyLet s thisJoinField sInExpr
@@ -169,9 +171,17 @@ translateFieldMultiplicity sig p Decl {..} = p
                        , disjoint  = False
                        , disjoint2 = False
                        }
-  all           = AlloyQt All [decl] alloyLet
-  smtMultiplicity = smtExpr where (_, smtExpr) = translate (p, [], all)  
-  multiplicityAssertion = Assertion ((show fieldVar) ++ "multiplicity") smtMultiplicity  
+  all             = AlloyQt All [decl] alloyLet
+  smtMultiplicity = smtExpr where (_, smtExpr) = translate (p, [], all)
+  multiplicityAssertion =
+    Assertion ((show fieldVar) ++ " multiplicity") smtMultiplicity
+  noMuliplicity = removeMultiplicity expr
+  substitution  = substituteExpr thisExpr (Signature sig) noMuliplicity
+  product       = AlloyBinary ARROW (Signature sig) substitution
+  subsetExpr    = AlloyBinary IN (Field Decl { .. }) product
+  subsetAssertion =
+    translateFormula p ((show fieldVar) ++ " subset") subsetExpr
+  program = addAssertions p [multiplicityAssertion, subsetAssertion]
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p _ = p -- ToDo: fix this
@@ -205,6 +215,12 @@ translateCommands p xs = foldl translateCommand p xs
 
 translateCommand :: SmtProgram -> Command -> SmtProgram
 translateCommand _ _ = undefined
+
+translateFormula :: SmtProgram -> String -> AlloyExpr -> Assertion
+translateFormula p string alloyExpr = assertion
+ where
+  (env, smtExpr) = translate (p, emptyEnv, alloyExpr)
+  assertion      = Assertion string smtExpr
 
 translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
 translate (_, env, Signature x          ) = (env, get env (label x))

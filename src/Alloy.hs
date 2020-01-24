@@ -241,3 +241,37 @@ isInt :: AlloyExpr -> Bool
 isInt x = case alloyType x of
     Prod [SigInt] -> True
     _             -> False
+
+
+-- erase all multiplicity operators in the given expr
+removeMultiplicity :: AlloyExpr -> AlloyExpr
+removeMultiplicity (AlloyUnary SOMEOF x) = removeMultiplicity x
+removeMultiplicity (AlloyUnary LONEOF x) = removeMultiplicity x
+removeMultiplicity (AlloyUnary ONEOF  x) = removeMultiplicity x
+removeMultiplicity (AlloyUnary SETOF  x) = removeMultiplicity x
+removeMultiplicity (AlloyBinary op x y ) = case op of
+    ARROW            -> arrowExpr
+    ANY_ARROW_SOME   -> arrowExpr
+    ANY_ARROW_ONE    -> arrowExpr
+    ANY_ARROW_LONE   -> arrowExpr
+    SOME_ARROW_ANY   -> arrowExpr
+    SOME_ARROW_SOME  -> arrowExpr
+    SOME_ARROW_ONE   -> arrowExpr
+    SOME_ARROW_LONE  -> arrowExpr
+    ONE_ARROW_ANY    -> arrowExpr
+    ONE_ARROW_SOME   -> arrowExpr
+    ONE_ARROW_ONE    -> arrowExpr
+    ONE_ARROW_LONE   -> arrowExpr
+    LONE_ARROW_ANY   -> arrowExpr
+    LONE_ARROW_SOME  -> arrowExpr
+    LONE_ARROW_ONE   -> arrowExpr
+    LONE_ARROW_LONE  -> arrowExpr
+    ISSEQ_ARROW_LONE -> arrowExpr
+    _                -> AlloyBinary op x y
+  where
+    arrowExpr = AlloyBinary ARROW (removeMultiplicity x) (removeMultiplicity y)
+removeMultiplicity x = x
+
+--                body      -> old       -> new
+substituteExpr :: AlloyExpr -> AlloyExpr -> AlloyExpr -> AlloyExpr
+substituteExpr _ _ _ = undefined

@@ -22,3 +22,5 @@ first (x, _) = x
 
 second :: (a, b) -> b
 second (_, y) = y
+
+emptyEnv = []
