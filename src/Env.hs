@@ -4,7 +4,7 @@ module Env where
 
 import           Smt
 
-data Env = Env{auxiliaryFormula::SmtExpr, variablesMap :: [(String, SmtExpr)]}
+data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtExpr)]}
 
 get :: Env -> String -> SmtExpr
 get Env {..} x = getVariable variablesMap x
@@ -14,11 +14,11 @@ get Env {..} x = getVariable variablesMap x
         if key == x then value else (getVariable tail x)
 
 contains :: Env -> String -> Bool
-contains Env {..} x = containsVariable variablesMap x
+contains Env {..}  = containsVariable variablesMap 
   where
     containsVariable [] _ = False
     containsVariable ((key, value) : tail) x =
-        if key == x then True else (containsVariable tail x)
+        key == x || (containsVariable tail x)
 
 put :: Env -> (String, SmtExpr) -> Env
 put env entry = env { variablesMap = entry : variablesMap env }
@@ -31,4 +31,6 @@ first (x, _) = x
 second :: (a, b) -> b
 second (_, y) = y
 
-emptyEnv = Env { auxiliaryFormula = smtTrue, variablesMap = [] }
+emptyEnv = Env { auxiliaryFormula = Nothing , variablesMap = [] }
+
+
