@@ -48,6 +48,9 @@ data Decl = Decl
     }
     deriving (Show, Eq)
 
+splitDecls :: [Decl] -> [Decl]
+splitDecls decls = concat (map splitDecl decls)
+
 splitDecl :: Decl -> [Decl]
 splitDecl Decl {..} =
     [ Decl { names     = [x]

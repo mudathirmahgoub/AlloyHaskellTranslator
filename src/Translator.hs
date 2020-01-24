@@ -134,23 +134,23 @@ translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
 translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 
 translateFields :: SmtProgram -> Sig -> SmtProgram
-translateFields p sig = program3
+translateFields p sig = program4
  where
-  sigFields = fields sig
-  program1  = declareFields p sig sigFields  
-  program2  = translateDisjointFields program1 sigFields
-  program3  = translateDisjoint2Fields program2 sigFields
-
-declareFields :: SmtProgram -> Sig -> [Decl] -> SmtProgram
-declareFields p sig decls = foldl (declareField sig) p decls
+  groups = fields sig
+  individuals = splitDecls groups 
+  program1  = foldl (declareField sig) p individuals  
+  program2  = foldl (translateFieldMultiplicity sig) program1 individuals
+  program3  = translateDisjointFields program2 groups
+  program4  = translateDisjoint2Fields program3 individuals
 
 declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
-declareField sig p Decl {..} = foldl addField p (splitDecl Decl { .. })
- where
-  addField script Decl {..} = addConstant
-    script
-    Variable { name = concat names, sort = smtSort, isOriginal = True }
-  smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
+declareField sig p Decl {..} = addConstant p constant
+ where  
+  constant = Variable { name = concat names, sort = smtSort, isOriginal = True }
+  smtSort  = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
+
+translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram
+translateFieldMultiplicity sig p Decl {..} = p
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p _ = p -- ToDo: fix this
