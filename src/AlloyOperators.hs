@@ -82,3 +82,9 @@ data AlloyQuantifier
     | Comprehension
     deriving (Show, Eq)
 
+data AlloyListOp
+    = DISJOINT
+    | TOTALORDER
+    | ListAND
+    | ListOR
+    deriving (Show, Eq)

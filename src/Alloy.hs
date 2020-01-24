@@ -41,6 +41,7 @@ data AlloyExpr
     | AlloyITE AlloyExpr AlloyExpr AlloyExpr
     | AlloyQt AlloyQuantifier [Decl] AlloyExpr
     | AlloyLet AlloyVariable AlloyExpr AlloyExpr
+    | AlloyList AlloyListOp [AlloyExpr]
     deriving (Show, Eq)
 
 data Decl = Decl
@@ -272,6 +273,47 @@ removeMultiplicity (AlloyBinary op x y ) = case op of
     arrowExpr = AlloyBinary ARROW (removeMultiplicity x) (removeMultiplicity y)
 removeMultiplicity x = x
 
---                body      -> old       -> new
-substituteExpr :: AlloyExpr -> AlloyExpr -> AlloyExpr -> AlloyExpr
-substituteExpr _ _ _ = undefined
+--                var       -> expr      -> body
+--                old       -> new       -> body
+--Java Types   :: ExprVar   -> Expr      -> Expr
+substitute :: AlloyExpr -> AlloyExpr -> AlloyExpr -> AlloyExpr
+substitute (AlloyVar _) _   (AlloyConstant x y) = (AlloyConstant x y)
+substitute (AlloyVar x) new (AlloyVar y) = if x == y then new else (AlloyVar y)
+substitute (AlloyVar _) _   (Signature x      ) = (Signature x)
+substitute (AlloyVar _) _   (Field     x      ) = (Field x)
+substitute (AlloyVar x) new (AlloyUnary op y) =
+    AlloyUnary op (substitute (AlloyVar x) new y)
+substitute (AlloyVar x) new (AlloyBinary op y z) = AlloyBinary
+    op
+    (substitute (AlloyVar x) new y)
+    (substitute (AlloyVar x) new z)
+substitute (AlloyVar x) new (AlloyITE a b c) = (AlloyITE u v w)
+  where
+    u = (substitute (AlloyVar x) new a)
+    v = (substitute (AlloyVar x) new b)
+    w = (substitute (AlloyVar x) new c)
+substitute _ _ x = error ((show x) ++ "not implemented")
+
+--Java types       ExprVar   -> Expr      -> Bool
+hasFreeVariable :: AlloyExpr -> AlloyExpr -> Bool
+hasFreeVariable (AlloyVar x) (AlloyVar  y      ) = x == y
+hasFreeVariable _            (Signature _      ) = False
+hasFreeVariable _            (AlloyConstant _ _) = False
+hasFreeVariable (AlloyVar x) (AlloyUnary _ y) = hasFreeVariable (AlloyVar x) y
+hasFreeVariable (AlloyVar x) (AlloyBinary _ y z) =
+    hasFreeVariable (AlloyVar x) y || hasFreeVariable (AlloyVar x) z
+hasFreeVariable (AlloyVar x) (AlloyQt _ decls z) =
+    notQuantifier && hasFreeVariable (AlloyVar x) z
+    where notQuantifier = notElem x (getDeclsVariables decls)
+
+hasFreeVariable (AlloyVar x) (AlloyList _ ys) =
+    any (hasFreeVariable (AlloyVar x)) ys
+hasFreeVariable (AlloyVar x) (AlloyITE a b c) = u || v || w
+  where
+    u = (hasFreeVariable (AlloyVar x) a)
+    v = (hasFreeVariable (AlloyVar x) b)
+    w = (hasFreeVariable (AlloyVar x) c)
+hasFreeVariable _ x = error ((show x) ++ "not implemented")
+
+getDeclsVariables :: [Decl] -> [AlloyVariable]
+getDeclsVariables decls = concatMap names (splitDecls decls)

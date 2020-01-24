@@ -154,9 +154,18 @@ declareField sig p Decl {..} = addConstant p constant
   smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
 translateField :: Sig -> SmtProgram -> Decl -> SmtProgram
--- Sig A {field: expr}
--- all this: A | let s = this.field | s in expr
--- field in (A -> removeMultiplicity[expr]) // create a separate function??
+-- Sig A {field: expr} is translated into 
+-- (1) all this: A | let $s$ = this.field | $s$ in expr
+-- (2) field in (A -> removeMultiplicity[expr]) where every occurence of 'this' in expr is replaced with A
+-- Example: sig A { r: set A, s: r->some A }. No occurence of this in 'set A'. AlloyExpr 'r -> some A' 
+-- is actually given as 'this . r -> some A'. I translate field s (with type Set Tuple[Atom, Atom, Atom])
+-- as follows:
+-- (1) (all this: A | (let $s$= this . s | $s$ in (this . r) ->some A))
+-- (2) s in A -> (A . r) -> A
+-- The second constraint is needed because A is not a type in smt, but a subset of Atoms. Without
+-- this constraint, s can be in  B -> (A . r) -> A where B is another top level signature
+
+
 translateField sig p Decl {..} = p
  where
   fieldVar      = getConstant p (concat (declNames Decl { .. }))
@@ -176,7 +185,7 @@ translateField sig p Decl {..} = p
   multiplicityAssertion =
     Assertion ((show fieldVar) ++ " multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
-  substitution  = substituteExpr thisExpr (Signature sig) noMuliplicity
+  substitution  = substitute thisExpr (Signature sig) noMuliplicity
   product       = AlloyBinary ARROW (Signature sig) substitution
   subsetExpr    = AlloyBinary IN (Field Decl { .. }) product
   subsetAssertion =
