@@ -172,7 +172,7 @@ translateField sig p Decl {..} = p
                        , disjoint2 = False
                        }
   all             = AlloyQt All [decl] alloyLet
-  smtMultiplicity = smtExpr where (_, smtExpr) = translate (p, [], all)
+  smtMultiplicity = smtExpr where (_, smtExpr) = translate (p, emptyEnv, all)
   multiplicityAssertion =
     Assertion ((show fieldVar) ++ " multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
@@ -205,7 +205,7 @@ translateFact :: SmtProgram -> Fact -> SmtProgram
 translateFact program (Fact name alloyExpr) = addAssertion program assertion
  where
   assertion    = Assertion name smtExpr
-  (_, smtExpr) = translate (program, [], alloyExpr)
+  (_, smtExpr) = translate (program, emptyEnv, alloyExpr)
 
 addSpecialAssertions :: SmtProgram -> SmtProgram
 addSpecialAssertions p = p -- ToDo: change this later

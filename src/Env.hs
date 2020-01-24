@@ -1,19 +1,27 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Env where
 
 import           Smt
 
-type Env = [(String, SmtExpr)]
+data Env = Env{auxiliaryFormula::SmtExpr, variablesMap :: [(String, SmtExpr)]}
 
 get :: Env -> String -> SmtExpr
-get ((key, value) : tail) x = if key == x then value else get tail x
-get _                     x = error (x ++ " not found")
+get Env {..} x = getVariable variablesMap x
+  where
+    getVariable [] _ = error (x ++ " not found")
+    getVariable ((key, value) : tail) x =
+        if key == x then value else (getVariable tail x)
 
 contains :: Env -> String -> Bool
-contains []                    _ = False
-contains ((key, value) : tail) x = if key == x then True else contains tail x
+contains Env {..} x = containsVariable variablesMap x
+  where
+    containsVariable [] _ = False
+    containsVariable ((key, value) : tail) x =
+        if key == x then True else (containsVariable tail x)
 
 put :: Env -> (String, SmtExpr) -> Env
-put env entry = entry : env
+put env entry = env { variablesMap = entry : variablesMap env }
 
 
 first :: (a, b) -> a
@@ -23,4 +31,4 @@ first (x, _) = x
 second :: (a, b) -> b
 second (_, y) = y
 
-emptyEnv = []
+emptyEnv = Env { auxiliaryFormula = smtTrue, variablesMap = [] }
