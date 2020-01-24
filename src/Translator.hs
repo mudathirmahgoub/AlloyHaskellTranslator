@@ -146,7 +146,7 @@ translateFields p sig = program4
 declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
 declareField sig p Decl {..} = addConstant p constant
  where  
-  constant = Variable { name = concat names, sort = smtSort, isOriginal = True }
+  constant = Variable { name = label sig ++ "/" ++ concat names, sort = smtSort, isOriginal = True }
   smtSort  = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
 translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram

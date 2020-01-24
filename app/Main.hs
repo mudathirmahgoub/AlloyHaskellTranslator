@@ -10,8 +10,8 @@ printTranslation = do
     print (alloyType (AlloyBinary JOIN (Signature a) (Signature b)))
     print (alloyType (Signature a))
     print translation
-    print (smtType (Var (getConstant translation "f1")))
-    print (smtType (Var (getConstant translation "f2")))
+    print (smtType (Var (getConstant translation "A/f1")))
+    print (smtType (Var (getConstant translation "A/f2")))
     where translation = translateModel alloyModel
 
 
