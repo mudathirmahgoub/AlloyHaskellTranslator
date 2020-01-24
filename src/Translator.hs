@@ -185,7 +185,7 @@ translateField sig p Decl {..} = p
   multiplicityAssertion =
     Assertion ((show fieldVar) ++ " multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
-  substitution  = substitute thisExpr (Signature sig) noMuliplicity
+  substitution  = substitute this (Signature sig) noMuliplicity
   product       = AlloyBinary ARROW (Signature sig) substitution
   subsetExpr    = AlloyBinary IN (Field Decl { .. }) product
   subsetAssertion =
