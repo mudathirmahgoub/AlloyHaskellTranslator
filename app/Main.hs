@@ -12,9 +12,8 @@ printTranslation = do
     print translation
     print (smtType (Var (getConstant translation "f1")))
     print (smtType (Var (getConstant translation "f2")))
-    where
-        translation = translateModel alloyModel
-    
+    where translation = translateModel alloyModel
+
 
 main :: IO ()
 main = printTranslation

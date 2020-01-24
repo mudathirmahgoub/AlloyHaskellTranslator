@@ -137,20 +137,20 @@ translateFields :: SmtProgram -> Sig -> SmtProgram
 translateFields p sig = program3
  where
   sigFields = fields sig
-  program1  = declareFields p sigFields
+  program1  = declareFields p sig sigFields
   program2  = translateDisjointFields program1 sigFields
   program3  = translateDisjoint2Fields program2 sigFields
 
-declareFields :: SmtProgram -> [Decl] -> SmtProgram
-declareFields p decls = foldl declareField p decls
+declareFields :: SmtProgram -> Sig -> [Decl] -> SmtProgram
+declareFields p sig decls = foldl (declareField sig)  p decls
 
-declareField :: SmtProgram -> Decl -> SmtProgram
-declareField p Decl {..} = foldl addField p (splitDecl Decl { .. })
+declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
+declareField sig p Decl {..} = foldl addField p (splitDecl Decl { .. })
  where
   addField script Decl {..} = addConstant
     script
     Variable { name = concat names, sort = smtSort, isOriginal = True }
-  smtSort = translateType (alloyType expr)
+  smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p _ = p -- ToDo: fix this
@@ -186,15 +186,15 @@ translateCommand :: SmtProgram -> Command -> SmtProgram
 translateCommand _ _ = undefined
 
 translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
-translate (_, env, Signature x          ) = (env, get env (label x))
-translate (_, _  , Field _              ) = undefined
-translate (_, _  , (AlloyConstant _ sig)) = case sig of
+translate (_, env, Signature x             ) = (env, get env (label x))
+translate (_, _  , Field _                 ) = undefined
+translate (_, _, (AlloyConstant _ sig)) = case sig of
   SigInt -> undefined
   _      -> error ("Constant " ++ " is not supported")
-translate (_, _, (AlloyUnary SOMEOF _)   ) = undefined
-translate (_, _, (AlloyUnary LONEOF _)   ) = undefined
-translate (_, _, (AlloyUnary ONEOF _)    ) = undefined
-translate (_, _, (AlloyUnary SETOF _)    ) = undefined
+translate (_, _  , (AlloyUnary SOMEOF _)   ) = undefined
+translate (_, _  , (AlloyUnary LONEOF _)   ) = undefined
+translate (_, _  , (AlloyUnary ONEOF _)    ) = undefined
+translate (_, _  , (AlloyUnary SETOF _)    ) = undefined
 translate (_, _, (AlloyUnary EXACTLYOF _)) = undefined
 translate (p, env, (AlloyUnary NOT x)) =
   (env, SmtUnary Not (second (translate (p, env, x))))
@@ -299,16 +299,16 @@ translate (p, env, (AlloyBinary GTE x y)) =
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
-translate (_, _  , (AlloyBinary NOT_LT _ _) ) = undefined
-translate (_, _  , (AlloyBinary NOT_LTE _ _)) = undefined
-translate (_, _  , (AlloyBinary NOT_GT _ _) ) = undefined
-translate (_, _  , (AlloyBinary NOT_GTE _ _)) = undefined
-translate (_, _  , (AlloyBinary SHL _ _)    ) = undefined
-translate (_, _  , (AlloyBinary SHA _ _)    ) = undefined
-translate (_, _  , (AlloyBinary SHR _ _)    ) = undefined
-translate (_, _  , (AlloyBinary IN _ _)     ) = undefined
-translate (p, env, (AlloyBinary NOT_IN x y) ) = (env, SmtUnary Not expr)
-  where (_, expr) = translate (p, env, AlloyBinary IN x y)
+translate (_, _, (AlloyBinary NOT_LT _ _) ) = undefined
+translate (_, _, (AlloyBinary NOT_LTE _ _)) = undefined
+translate (_, _, (AlloyBinary NOT_GT _ _) ) = undefined
+translate (_, _, (AlloyBinary NOT_GTE _ _)) = undefined
+translate (_, _, (AlloyBinary SHL _ _)    ) = undefined
+translate (_, _, (AlloyBinary SHA _ _)    ) = undefined
+translate (_, _, (AlloyBinary SHR _ _)    ) = undefined
+translate (_, _, (AlloyBinary IN _ _)     ) = undefined
+translate (p, env, (AlloyBinary NOT_IN x y)) = (env, SmtUnary Not expr)
+  where (_, expr) =  translate (p, env, AlloyBinary IN x y)
 translate (p, env, (AlloyBinary AND x y)) =
   ( env
   , SmtMultiArity
