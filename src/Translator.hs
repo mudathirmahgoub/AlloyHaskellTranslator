@@ -46,7 +46,7 @@ translateSignature _ SigString    = undefined
 translateSignature p PrimSig {..} = program5
  where
   program0 = foldl translateSignature p children
-  program1 = translateMultiplicity program0 PrimSig { .. }
+  program1 = translateSigMultiplicity program0 PrimSig { .. }
   program2 = translateParent program1 PrimSig { .. }
   program3 = translateDisjointChildren program2 PrimSig { .. }
   program4 = translateAbstract program3 PrimSig { .. }
@@ -54,15 +54,15 @@ translateSignature p PrimSig {..} = program5
 
 translateSignature p SubsetSig {..} = program3
  where
-  program1 = translateMultiplicity p SubsetSig { .. }
+  program1 = translateSigMultiplicity p SubsetSig { .. }
   program2 = translateParent program1 SubsetSig { .. }
   program3 = translateFields program2 SubsetSig { .. }
 
 -- require sig is already defined in SMTScript p
-translateMultiplicity :: SmtProgram -> Sig -> SmtProgram
+translateSigMultiplicity :: SmtProgram -> Sig -> SmtProgram
 -- sig a
 -- use different from empty set
-translateMultiplicity p sig = addAssertion assertion p
+translateSigMultiplicity p sig = addAssertion assertion p
  where
   c           = getConstant p (label sig)
   s           = translateType (Prod [sig])
@@ -137,7 +137,7 @@ translateFields :: SmtProgram -> Sig -> SmtProgram
 translateFields p sig = program3
  where
   sigFields = fields sig
-  program1  = declareFields p sig sigFields
+  program1  = declareFields p sig sigFields  
   program2  = translateDisjointFields program1 sigFields
   program3  = translateDisjoint2Fields program2 sigFields
 
