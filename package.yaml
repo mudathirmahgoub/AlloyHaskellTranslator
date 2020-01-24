@@ -8,6 +8,7 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -W
     dependencies:
     - AlloyHaskellTranslator
 copyright: 2019 Author name here
