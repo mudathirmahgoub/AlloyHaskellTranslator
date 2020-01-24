@@ -27,15 +27,20 @@ data Scope
     }
     deriving (Show, Eq)
 
+data AlloyVariable = AlloyVariable String AlloyType deriving (Eq)
+instance Show AlloyVariable where
+    show (AlloyVariable x _) = x
+
 data AlloyExpr
     = Signature Sig
     | Field Decl
     | AlloyConstant String Sig
+    | AlloyVar AlloyVariable
     | AlloyUnary AlloyUnaryOp AlloyExpr
     | AlloyBinary AlloyBinaryOp AlloyExpr AlloyExpr
     | AlloyITE AlloyExpr AlloyExpr AlloyExpr
     | AlloyQt AlloyQuantifier [Decl] AlloyExpr
-    | AlloyLet String AlloyExpr AlloyExpr
+    | AlloyLet AlloyVariable AlloyExpr AlloyExpr
     deriving (Show, Eq)
 
 -- Decl has field expr to support multiplicity constraints

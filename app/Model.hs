@@ -13,7 +13,7 @@ a = aSig
     , primMultiplicity = ONEOF
     , primFacts        = []
     , primFields       = [ Decl
-                             { names     = ["f1", "f2"]
+                             { names     = ["A/f1", "A/f2"]
                              , expr      = AlloyBinary ARROW
                                                        (Signature aSig)
                                                        (Signature aSig)

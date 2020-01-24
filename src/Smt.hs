@@ -7,7 +7,7 @@ data SmtProgram
     = SmtProgram
     {
         sorts :: [Sort],
-        constants :: [Variable],
+        constants :: [SmtVariable],
         assertions :: [Assertion]
     } deriving (Show, Eq)
 
@@ -17,41 +17,41 @@ emptyProgram = SmtProgram { sorts = [], constants = [], assertions = [] }
 addSort :: Sort -> SmtProgram -> SmtProgram
 addSort s p = p { sorts = s : sorts p }
 
-getConstant :: SmtProgram -> String -> Variable
+getConstant :: SmtProgram -> String -> SmtVariable
 getConstant p x = getByName (constants p) x
   where
     getByName (v : vs) n = if name v == n then v else getByName vs n
     getByName _        n = error (n ++ " not found")
 
-addConstant :: SmtProgram -> Variable -> SmtProgram
+addConstant :: SmtProgram -> SmtVariable -> SmtProgram
 addConstant p f = p { constants = f : constants p }
 
-addConstants :: SmtProgram -> [Variable] -> SmtProgram
+addConstants :: SmtProgram -> [SmtVariable] -> SmtProgram
 addConstants = foldl addConstant
 
 addAssertion :: Assertion -> SmtProgram -> SmtProgram
 addAssertion a p = p { assertions = a : assertions p }
 
-data Variable
-    = Variable
+data SmtVariable
+    = SmtVariable
     {
         name :: String,
         sort :: Sort,
         isOriginal :: Bool -- is it original smt name or auxiliary name?
     } deriving (Eq)
 
-instance Show Variable where
+instance Show SmtVariable where
     show = name
 
 data SmtExpr
     = SmtIntConstant Int
-    | Var Variable
+    | SmtVar SmtVariable
     | SmtBoolConstant Bool
     | SmtUnary SmtUnaryOp SmtExpr
     | SmtBinary SmtBinaryOp SmtExpr SmtExpr
     | SmtIte SmtExpr SmtExpr SmtExpr
-    | SmtLet Variable SmtExpr SmtExpr
-    | SmtQt SmtQuantifier [Variable] SmtExpr
+    | SmtLet SmtVariable SmtExpr SmtExpr
+    | SmtQt SmtQuantifier [SmtVariable] SmtExpr
     | SortExpr Sort
     | SmtMultiArity SmtMultiArityOp [SmtExpr]
     deriving (Show, Eq)
@@ -66,30 +66,30 @@ data Sort = SmtInt | SmtBool | Atom | UInt | Tuple [Sort] | Set Sort deriving (S
 
 data Assertion = Assertion String SmtExpr deriving (Show, Eq)
 
-none :: Variable
+none :: SmtVariable
 none =
-    Variable { name = "none", sort = Set (Tuple [Atom]), isOriginal = False }
+    SmtVariable { name = "none", sort = Set (Tuple [Atom]), isOriginal = False }
 
-univAtom :: Variable
-univAtom = Variable { name       = "univAtom"
+univAtom :: SmtVariable
+univAtom = SmtVariable { name       = "univAtom"
                     , sort       = Set (Tuple [Atom])
                     , isOriginal = False
                     }
 
-idenAtom :: Variable
-idenAtom = Variable { name       = "idenAtom"
+idenAtom :: SmtVariable
+idenAtom = SmtVariable { name       = "idenAtom"
                     , sort       = Set (Tuple [Atom, Atom])
                     , isOriginal = False
                     }
 
-univInt :: Variable
+univInt :: SmtVariable
 univInt =
-    Variable { name = "univInt", sort = Set (Tuple [UInt]), isOriginal = False }
+    SmtVariable { name = "univInt", sort = Set (Tuple [UInt]), isOriginal = False }
 
 smtType :: SmtExpr -> Sort
 smtType (SmtIntConstant  _            ) = SmtInt
 smtType (SmtBoolConstant _            ) = SmtBool
-smtType (Var             Variable {..}) = sort
+smtType (SmtVar             SmtVariable {..}) = sort
 -- unary
 smtType (SmtUnary Not        _        ) = SmtBool
 smtType (SmtUnary Complement x        ) = smtType x
@@ -133,7 +133,7 @@ smtType x = error ("type of " ++ (show x) ++ " is not implemented")
 
 checkType :: SmtExpr -> Bool
 checkType (SmtIntConstant  _    ) = True
-checkType (Var             _    ) = True
+checkType (SmtVar             _    ) = True
 checkType (SmtBoolConstant _    ) = True
 -- unary
 checkType (SmtUnary Not        x) = (smtType x) == SmtBool

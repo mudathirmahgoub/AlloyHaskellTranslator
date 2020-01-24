@@ -32,7 +32,7 @@ declareSignature p None      = addConstant p none
 declareSignature _ SigString = undefined
 declareSignature p sig       = addConstant
   p
-  Variable { name = label sig, sort = s, isOriginal = True }
+  SmtVariable { name = label sig, sort = s, isOriginal = True }
   where s = translateType (Prod [sig])
 
 translateHierarchy :: SmtProgram -> [Sig] -> SmtProgram
@@ -66,10 +66,10 @@ translateSigMultiplicity p sig = addAssertion assertion p
  where
   c           = getConstant p (label sig)
   s           = translateType (Prod [sig])
-  x           = Variable { name = "x", sort = s, isOriginal = False }
-  singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [Var x]))
-  isSingleton = SmtBinary Eq (Var c) singleton
-  subset      = SmtBinary Subset (Var c) singleton
+  x           = SmtVariable { name = "x", sort = s, isOriginal = False }
+  singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
+  isSingleton = SmtBinary Eq (SmtVar c) singleton
+  subset      = SmtBinary Subset (SmtVar c) singleton
   empty       = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
   existsOne   = SmtQt Exists [x] isSingleton
   existsSome  = SmtQt Exists [x] subset
@@ -86,14 +86,14 @@ translateParent p PrimSig {..} = addAssertion assertion p
  where
   childVar  = getConstant p primLabel
   parentVar = getConstant p (label parent)
-  subset    = SmtBinary Subset (Var childVar) (Var parentVar)
+  subset    = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   assertion = Assertion ("parent " ++ primLabel) subset
 
 translateParent p SubsetSig {..} = addAssertion assertion p
  where
   childVar   = getConstant p subsetLabel
   parentVars = map (getConstant p . label) parents
-  function parentVar = SmtBinary Subset (Var childVar) (Var parentVar)
+  function parentVar = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
 
@@ -105,7 +105,7 @@ translateDisjointChildren p PrimSig {..} = addAssertion assertion p
  where
   function (x, y) = SmtBinary Eq
                               empty
-                              (SmtBinary Intersection (Var xVar) (Var yVar))
+                              (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
     xVar = getConstant p (label x)
     yVar = getConstant p (label y)
@@ -126,10 +126,10 @@ translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
     function x y = SmtBinary Union x y
     sigVar    = getConstant p primLabel
     union     = foldl function empty variables
-    variables = map (Var . getConstant p . label) children
+    variables = map (SmtVar . getConstant p . label) children
     sigSort   = translateType (Prod [PrimSig { .. }])
     empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
-    equal     = SmtBinary Eq (Var sigVar) union
+    equal     = SmtBinary Eq (SmtVar sigVar) union
     assertion = Assertion ("Abstract " ++ primLabel) equal
 translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 
@@ -146,11 +146,20 @@ translateFields p sig = program4
 declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
 declareField sig p Decl {..} = addConstant p constant
  where  
-  constant = Variable { name = label sig ++ "/" ++ concat names, sort = smtSort, isOriginal = True }
+  constant = SmtVariable { name = concat names, sort = smtSort, isOriginal = True }
   smtSort  = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
 translateFieldMultiplicity :: Sig -> SmtProgram -> Decl -> SmtProgram
+-- Sig A {field: expr}
+-- all this: A | let s = this.field | s in expr
 translateFieldMultiplicity sig p Decl {..} = p
+  where
+    fieldVar    = getConstant p (concat names)
+    this = AlloyVariable "this" (Prod [sig])
+    thisJoinField = AlloyBinary JOIN (AlloyVar this) (Field Decl {..})
+    s = AlloyVariable "s" (alloyType thisJoinField)
+    sInExpr = AlloyBinary IN (AlloyVar s) expr
+    alloyLet = AlloyLet s thisJoinField sInExpr
 
 translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
 translateDisjointFields p _ = p -- ToDo: fix this
