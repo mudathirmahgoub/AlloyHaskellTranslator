@@ -229,7 +229,15 @@ translateFormula :: SmtProgram -> String -> AlloyExpr -> Assertion
 translateFormula p string alloyExpr = assertion
  where
   (env, smtExpr) = translate (p, emptyEnv, alloyExpr)
+  formula        = translateAuxiliaryFormula env smtExpr
   assertion      = Assertion string smtExpr
+
+translateAuxiliaryFormula :: Env -> SmtExpr -> SmtExpr
+translateAuxiliaryFormula Env{auxiliaryFormula = Nothing} expr = expr
+translateAuxiliaryFormula Env{auxiliaryFormula = (Just aux)} expr = case aux of 
+  SmtQt Exists variables body -> SmtQt Exists variables (SmtMultiArity And [body, expr])
+  SmtQt ForAll variables body -> SmtQt ForAll variables (SmtBinary Implies body expr)
+  _ -> error ("Auxiliary formula " ++ (show aux) ++ " is not supported")
 
 translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
 translate (_, env, Signature x          ) = (env, get env (label x))
