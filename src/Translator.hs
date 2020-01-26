@@ -19,7 +19,7 @@ translateModel model = program6
   program6 = translateCommands program5 (commands model)
 
 translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
---translateSignatures p [] = p
+translateSignatures p [] = p
 translateSignatures p xs = translateHierarchy p (filter isTopLevel xs)
 
 declareSignatures :: SmtProgram -> [Sig] -> SmtProgram
