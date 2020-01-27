@@ -3,37 +3,37 @@ module Smt where
 
 import           SmtOperators
 
-data SmtProgram
-    = SmtProgram
+data SmtScript
+    = SmtScript
     {
         sorts :: [Sort],
         constants :: [SmtVariable],
         assertions :: [Assertion]
     } deriving (Show, Eq)
 
-emptyProgram :: SmtProgram
-emptyProgram = SmtProgram { sorts = [], constants = [], assertions = [] }
+emptySmtScript :: SmtScript
+emptySmtScript = SmtScript { sorts = [], constants = [], assertions = [] }
 
-addSort :: Sort -> SmtProgram -> SmtProgram
-addSort s p = p { sorts = s : sorts p }
+addSort :: Sort -> SmtScript -> SmtScript
+addSort s smtScript = smtScript { sorts = s : sorts smtScript }
 
-getConstant :: SmtProgram -> String -> SmtVariable
-getConstant p x = getByName (constants p) x
+getConstant :: SmtScript -> String -> SmtVariable
+getConstant smtScript x = getByName (constants smtScript) x
   where
     getByName (v : vs) n = if name v == n then v else getByName vs n
     getByName _        n = error (n ++ " not found")
 
-addConstant :: SmtProgram -> SmtVariable -> SmtProgram
-addConstant p f = p { constants = f : constants p }
+addConstant :: SmtScript -> SmtVariable -> SmtScript
+addConstant smtScript f = smtScript { constants = f : constants smtScript }
 
-addConstants :: SmtProgram -> [SmtVariable] -> SmtProgram
+addConstants :: SmtScript -> [SmtVariable] -> SmtScript
 addConstants = foldl addConstant
 
-addAssertion :: SmtProgram -> Assertion -> SmtProgram
-addAssertion p a = p { assertions = a : assertions p }
+addAssertion :: SmtScript -> Assertion -> SmtScript
+addAssertion smtScript a = smtScript { assertions = a : assertions smtScript }
 
 
-addAssertions :: SmtProgram -> [Assertion] -> SmtProgram
+addAssertions :: SmtScript -> [Assertion] -> SmtScript
 addAssertions = foldl addAssertion
 
 data SmtVariable
@@ -41,7 +41,7 @@ data SmtVariable
     {
         name :: String,
         sort :: Sort,
-        isOriginal :: Bool -- is it original smt name or auxiliary name?
+        isOriginal :: Bool -- is it original smtScript name or auxiliary name?
     } deriving (Eq)
 
 instance Show SmtVariable where
@@ -76,51 +76,53 @@ none =
 
 univAtom :: SmtVariable
 univAtom = SmtVariable { name       = "univAtom"
-                    , sort       = Set (Tuple [Atom])
-                    , isOriginal = False
-                    }
+                       , sort       = Set (Tuple [Atom])
+                       , isOriginal = False
+                       }
 
 idenAtom :: SmtVariable
 idenAtom = SmtVariable { name       = "idenAtom"
-                    , sort       = Set (Tuple [Atom, Atom])
-                    , isOriginal = False
-                    }
+                       , sort       = Set (Tuple [Atom, Atom])
+                       , isOriginal = False
+                       }
 
 univInt :: SmtVariable
-univInt =
-    SmtVariable { name = "univInt", sort = Set (Tuple [UInt]), isOriginal = False }
+univInt = SmtVariable { name       = "univInt"
+                      , sort       = Set (Tuple [UInt])
+                      , isOriginal = False
+                      }
 
 smtType :: SmtExpr -> Sort
-smtType (SmtIntConstant  _            ) = SmtInt
-smtType (SmtBoolConstant _            ) = SmtBool
-smtType (SmtVar             SmtVariable {..}) = sort
+smtType (SmtIntConstant  _               ) = SmtInt
+smtType (SmtBoolConstant _               ) = SmtBool
+smtType (SmtVar          SmtVariable {..}) = sort
 -- unary
-smtType (SmtUnary Not        _        ) = SmtBool
-smtType (SmtUnary Complement x        ) = smtType x
-smtType (SmtUnary Transpose  _        ) = undefined
-smtType (SmtUnary TClosure   x        ) = smtType x
-smtType (SmtUnary Singleton  x        ) = Set (smtType x)
-smtType (SmtUnary UnivSet    x        ) = smtType x
-smtType (SmtUnary EmptySet   x        ) = smtType x
+smtType (SmtUnary Not        _           ) = SmtBool
+smtType (SmtUnary Complement x           ) = smtType x
+smtType (SmtUnary Transpose  _           ) = undefined
+smtType (SmtUnary TClosure   x           ) = smtType x
+smtType (SmtUnary Singleton  x           ) = Set (smtType x)
+smtType (SmtUnary UnivSet    x           ) = smtType x
+smtType (SmtUnary EmptySet   x           ) = smtType x
 -- binary
-smtType (SmtBinary Implies      _ _   ) = SmtBool
-smtType (SmtBinary Plus         _ _   ) = SmtInt
-smtType (SmtBinary Minus        _ _   ) = SmtInt
-smtType (SmtBinary Multiply     _ _   ) = SmtInt
-smtType (SmtBinary Divide       _ _   ) = SmtInt
-smtType (SmtBinary Mod          _ _   ) = SmtInt
-smtType (SmtBinary Eq           _ _   ) = SmtBool
-smtType (SmtBinary Gte          _ _   ) = SmtBool
-smtType (SmtBinary Lte          _ _   ) = SmtBool
-smtType (SmtBinary Gt           _ _   ) = SmtBool
-smtType (SmtBinary Lt           _ _   ) = SmtBool
-smtType (SmtBinary Union        x _   ) = smtType x
-smtType (SmtBinary Intersection x _   ) = smtType x
-smtType (SmtBinary SetMinus     x _   ) = smtType x
-smtType (SmtBinary Member       _ _   ) = SmtBool
-smtType (SmtBinary Subset       _ _   ) = SmtBool
-smtType (SmtBinary Join         _ _   ) = undefined
-smtType (SmtBinary Product      x y   ) = case (xType, yType) of
+smtType (SmtBinary Implies      _ _      ) = SmtBool
+smtType (SmtBinary Plus         _ _      ) = SmtInt
+smtType (SmtBinary Minus        _ _      ) = SmtInt
+smtType (SmtBinary Multiply     _ _      ) = SmtInt
+smtType (SmtBinary Divide       _ _      ) = SmtInt
+smtType (SmtBinary Mod          _ _      ) = SmtInt
+smtType (SmtBinary Eq           _ _      ) = SmtBool
+smtType (SmtBinary Gte          _ _      ) = SmtBool
+smtType (SmtBinary Lte          _ _      ) = SmtBool
+smtType (SmtBinary Gt           _ _      ) = SmtBool
+smtType (SmtBinary Lt           _ _      ) = SmtBool
+smtType (SmtBinary Union        x _      ) = smtType x
+smtType (SmtBinary Intersection x _      ) = smtType x
+smtType (SmtBinary SetMinus     x _      ) = smtType x
+smtType (SmtBinary Member       _ _      ) = SmtBool
+smtType (SmtBinary Subset       _ _      ) = SmtBool
+smtType (SmtBinary Join         _ _      ) = undefined
+smtType (SmtBinary Product      x y      ) = case (xType, yType) of
     (Set (Tuple xs), Set (Tuple ys)) -> Set (Tuple (xs ++ ys))
     _ -> error ("Invalid product of " ++ (show xType) ++ " " ++ (show yType))
   where
@@ -137,7 +139,7 @@ smtType x = error ("type of " ++ (show x) ++ " is not implemented")
 
 checkType :: SmtExpr -> Bool
 checkType (SmtIntConstant  _    ) = True
-checkType (SmtVar             _    ) = True
+checkType (SmtVar          _    ) = True
 checkType (SmtBoolConstant _    ) = True
 -- unary
 checkType (SmtUnary Not        x) = (smtType x) == SmtBool

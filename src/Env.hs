@@ -4,23 +4,21 @@ module Env where
 
 import           Smt
 
-data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtExpr)]}
+data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtVariable)]}
 
-get :: Env -> String -> SmtExpr
+get :: Env -> String -> SmtVariable
 get Env {..} x = getVariable variablesMap x
-  where
-    getVariable [] _ = error (x ++ " not found")
-    getVariable ((key, value) : tail) x =
-        if key == x then value else (getVariable tail x)
+ where
+  getVariable []           _ = error (x ++ " not found")
+  getVariable ((k, v) : t) _ = if k == x then v else (getVariable t x)
 
 contains :: Env -> String -> Bool
-contains Env {..}  = containsVariable variablesMap 
-  where
-    containsVariable [] _ = False
-    containsVariable ((key, value) : tail) x =
-        key == x || (containsVariable tail x)
+contains Env {..} = containsVariable variablesMap
+ where
+  containsVariable []           _ = False
+  containsVariable ((k, _) : t) x = k == x || (containsVariable t x)
 
-put :: Env -> (String, SmtExpr) -> Env
+put :: Env -> (String, SmtVariable) -> Env
 put env entry = env { variablesMap = entry : variablesMap env }
 
 
@@ -31,6 +29,7 @@ first (x, _) = x
 second :: (a, b) -> b
 second (_, y) = y
 
-emptyEnv = Env { auxiliaryFormula = Nothing , variablesMap = [] }
+emptyEnv :: Env
+emptyEnv = Env { auxiliaryFormula = Nothing, variablesMap = [] }
 
 

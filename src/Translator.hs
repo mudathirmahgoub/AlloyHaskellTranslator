@@ -6,65 +6,66 @@ import           Alloy
 import           Smt
 import           Env
 
-translateModel :: AlloyModel -> SmtProgram
-translateModel model = program6
+translateModel :: AlloyModel -> SmtScript
+translateModel model = smtScript6
  where
-  sigs     = signatures model
-  program1 = declareSignatures emptyProgram sigs
-  program2 = translateSignatures program1 sigs
-  program3 = translateSignatureFacts program2 sigs
-  program4 = translateFacts program3 (facts model)
+  sigs       = signatures model
+  smtScript1 = declareSignatures emptySmtScript sigs
+  smtScript2 = translateSignatures smtScript1 sigs
+  smtScript3 = translateSignatureFacts smtScript2 sigs
+  smtScript4 = translateFacts smtScript3 (facts model)
   -- axioms for none, univAtom, univInt, intValue
-  program5 = addSpecialAssertions program4
-  program6 = translateCommands program5 (commands model)
+  smtScript5 = addSpecialAssertions smtScript4
+  smtScript6 = translateCommands smtScript5 (commands model)
 
-translateSignatures :: SmtProgram -> [Sig] -> SmtProgram
-translateSignatures p [] = p
-translateSignatures p xs = translateHierarchy p (filter isTopLevel xs)
+translateSignatures :: SmtScript -> [Sig] -> SmtScript
+translateSignatures smtScript [] = smtScript
+translateSignatures smtScript xs =
+  translateHierarchy smtScript (filter isTopLevel xs)
 
-declareSignatures :: SmtProgram -> [Sig] -> SmtProgram
-declareSignatures p xs = foldl declareSignature p xs
+declareSignatures :: SmtScript -> [Sig] -> SmtScript
+declareSignatures smtScript xs = foldl declareSignature smtScript xs
 
-declareSignature :: SmtProgram -> Sig -> SmtProgram
-declareSignature p Univ      = addConstant p univAtom
-declareSignature p SigInt    = addConstant p univInt
-declareSignature p None      = addConstant p none
-declareSignature _ SigString = undefined
-declareSignature p sig       = addConstant
-  p
+declareSignature :: SmtScript -> Sig -> SmtScript
+declareSignature smtScript Univ      = addConstant smtScript univAtom
+declareSignature smtScript SigInt    = addConstant smtScript univInt
+declareSignature smtScript None      = addConstant smtScript none
+declareSignature _         SigString = undefined
+declareSignature smtScript sig       = addConstant
+  smtScript
   SmtVariable { name = label sig, sort = s, isOriginal = True }
   where s = translateType (Prod [sig])
 
-translateHierarchy :: SmtProgram -> [Sig] -> SmtProgram
-translateHierarchy p xs = foldl translateSignature p xs
+translateHierarchy :: SmtScript -> [Sig] -> SmtScript
+translateHierarchy smtScript xs = foldl translateSignature smtScript xs
 
-translateSignature :: SmtProgram -> Sig -> SmtProgram
-translateSignature p Univ         = p
-translateSignature p SigInt       = p
-translateSignature p None         = p
-translateSignature _ SigString    = undefined
-translateSignature p PrimSig {..} = program5
+translateSignature :: SmtScript -> Sig -> SmtScript
+translateSignature smtScript Univ         = smtScript
+translateSignature smtScript SigInt       = smtScript
+translateSignature smtScript None         = smtScript
+translateSignature _         SigString    = undefined
+translateSignature smtScript PrimSig {..} = smtScript5
  where
-  program0 = foldl translateSignature p children
-  program1 = translateSigMultiplicity program0 PrimSig { .. }
-  program2 = translateParent program1 PrimSig { .. }
-  program3 = translateDisjointChildren program2 PrimSig { .. }
-  program4 = translateAbstract program3 PrimSig { .. }
-  program5 = translateFields program4 PrimSig { .. }
+  smtScript0 = foldl translateSignature smtScript children
+  smtScript1 = translateSigMultiplicity smtScript0 PrimSig { .. }
+  smtScript2 = translateParent smtScript1 PrimSig { .. }
+  smtScript3 = translateDisjointChildren smtScript2 PrimSig { .. }
+  smtScript4 = translateAbstract smtScript3 PrimSig { .. }
+  smtScript5 = translateFields smtScript4 PrimSig { .. }
 
-translateSignature p SubsetSig {..} = program3
+translateSignature smtScript SubsetSig {..} = smtScript3
  where
-  program1 = translateSigMultiplicity p SubsetSig { .. }
-  program2 = translateParent program1 SubsetSig { .. }
-  program3 = translateFields program2 SubsetSig { .. }
+  smtScript1 = translateSigMultiplicity smtScript SubsetSig { .. }
+  smtScript2 = translateParent smtScript1 SubsetSig { .. }
+  smtScript3 = translateFields smtScript2 SubsetSig { .. }
 
 -- require sig is already defined in SMTScript p
-translateSigMultiplicity :: SmtProgram -> Sig -> SmtProgram
+translateSigMultiplicity :: SmtScript -> Sig -> SmtScript
 -- sig a
 -- use different from empty set
-translateSigMultiplicity p sig = addAssertion p assertion
+translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
  where
-  c           = getConstant p (label sig)
+  c           = getConstant smtScript (label sig)
   s           = translateType (Prod [sig])
   x           = SmtVariable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
@@ -81,18 +82,18 @@ translateSigMultiplicity p sig = addAssertion p assertion
     _      -> Assertion "" smtTrue
 
 -- refactor this with subset 
-translateParent :: SmtProgram -> Sig -> SmtProgram
-translateParent p PrimSig {..} = addAssertion p assertion
+translateParent :: SmtScript -> Sig -> SmtScript
+translateParent smtScript PrimSig {..} = addAssertion smtScript assertion
  where
-  childVar  = getConstant p primLabel
-  parentVar = getConstant p (label parent)
+  childVar  = getConstant smtScript primLabel
+  parentVar = getConstant smtScript (label parent)
   subset    = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   assertion = Assertion ("parent " ++ primLabel) subset
 
-translateParent p SubsetSig {..} = addAssertion p assertion
+translateParent smtScript SubsetSig {..} = addAssertion smtScript assertion
  where
-  childVar   = getConstant p subsetLabel
-  parentVars = map (getConstant p . label) parents
+  childVar   = getConstant smtScript subsetLabel
+  parentVars = map (getConstant smtScript . label) parents
   function parentVar = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
@@ -100,16 +101,17 @@ translateParent p SubsetSig {..} = addAssertion p assertion
 translateParent _ _ = undefined
 
 
-translateDisjointChildren :: SmtProgram -> Sig -> SmtProgram
-translateDisjointChildren p PrimSig {..} = addAssertion p assertion
+translateDisjointChildren :: SmtScript -> Sig -> SmtScript
+translateDisjointChildren smtScript PrimSig {..} = addAssertion smtScript
+                                                                assertion
  where
   function (x, y) = SmtBinary
     Eq
     empty
     (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
-    xVar = getConstant p (label x)
-    yVar = getConstant p (label y)
+    xVar = getConstant smtScript (label x)
+    yVar = getConstant smtScript (label y)
   disjointChildren zs = map function zs
   sigSort   = translateType (Prod [PrimSig { .. }])
   empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
@@ -119,33 +121,34 @@ translateDisjointChildren p PrimSig {..} = addAssertion p assertion
 translateDisjointChildren _ sig =
   error ((label sig) ++ " is not a prime signature")
 
-translateAbstract :: SmtProgram -> Sig -> SmtProgram
-translateAbstract p PrimSig {..} = case isAbstract && not (null children) of
-  False -> p
-  True  -> addAssertion p assertion
-   where
-    function x y = SmtBinary Union x y
-    sigVar    = getConstant p primLabel
-    union     = foldl function empty variables
-    variables = map (SmtVar . getConstant p . label) children
-    sigSort   = translateType (Prod [PrimSig { .. }])
-    empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
-    equal     = SmtBinary Eq (SmtVar sigVar) union
-    assertion = Assertion ("Abstract " ++ primLabel) equal
+translateAbstract :: SmtScript -> Sig -> SmtScript
+translateAbstract smtScript PrimSig {..} =
+  case isAbstract && not (null children) of
+    False -> smtScript
+    True  -> addAssertion smtScript assertion
+     where
+      function x y = SmtBinary Union x y
+      sigVar    = getConstant smtScript primLabel
+      union     = foldl function empty variables
+      variables = map (SmtVar . getConstant smtScript . label) children
+      sigSort   = translateType (Prod [PrimSig { .. }])
+      empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+      equal     = SmtBinary Eq (SmtVar sigVar) union
+      assertion = Assertion ("Abstract " ++ primLabel) equal
 translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 
-translateFields :: SmtProgram -> Sig -> SmtProgram
-translateFields p sig = program4
+translateFields :: SmtScript -> Sig -> SmtScript
+translateFields smtScript sig = smtScript4
  where
   groups      = fields sig
   individuals = splitDecls groups
-  program1    = foldl (declareField sig) p individuals
-  program2    = foldl (translateField sig) program1 individuals
-  program3    = translateDisjointFields program2 groups
-  program4    = translateDisjoint2Fields program3 individuals
+  smtScript1  = foldl (declareField sig) smtScript individuals
+  smtScript2  = foldl (translateField sig) smtScript1 individuals
+  smtScript3  = translateDisjointFields smtScript2 groups
+  smtScript4  = translateDisjoint2Fields smtScript3 individuals
 
-declareField :: Sig -> SmtProgram -> Decl -> SmtProgram
-declareField sig p Decl {..} = addConstant p constant
+declareField :: Sig -> SmtScript -> Decl -> SmtScript
+declareField sig smtScript Decl {..} = addConstant smtScript constant
  where
   constant = SmtVariable { name       = concat (declNames Decl { .. })
                          , sort       = smtSort
@@ -153,7 +156,7 @@ declareField sig p Decl {..} = addConstant p constant
                          }
   smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
-translateField :: Sig -> SmtProgram -> Decl -> SmtProgram
+translateField :: Sig -> SmtScript -> Decl -> SmtScript
 -- Sig A {field: expr} is translated into 
 -- (1) all this: A | let $s$ = this.field | $s$ in expr
 -- (2) field in (A -> removeMultiplicity[expr]) where every occurence of 'this' in expr is replaced with A
@@ -166,9 +169,9 @@ translateField :: Sig -> SmtProgram -> Decl -> SmtProgram
 -- this constraint, s can be in  B -> (A . r) -> A where B is another top level signature
 
 
-translateField sig p Decl {..} = p
+translateField sig smtScript Decl {..} = smtScript -- ToDo: fix this
  where
-  fieldVar      = getConstant p (concat (declNames Decl { .. }))
+  fieldVar      = getConstant smtScript (concat (declNames Decl { .. }))
   this          = AlloyVariable "this" (Prod [sig])
   thisExpr      = AlloyVar this
   thisJoinField = AlloyBinary JOIN thisExpr (Field Decl { .. })
@@ -180,55 +183,58 @@ translateField sig p Decl {..} = p
                        , disjoint  = False
                        , disjoint2 = False
                        }
-  all             = AlloyQt All [decl] alloyLet
-  smtMultiplicity = smtExpr where (_, smtExpr) = translate (p, emptyEnv, all)
+  allExpr         = AlloyQt All [decl] alloyLet
+  smtMultiplicity = smtExpr
+    where (_, smtExpr) = translate (smtScript, emptyEnv, allExpr)
   multiplicityAssertion =
     Assertion ((show fieldVar) ++ " multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
   substitution  = substitute this (Signature sig) noMuliplicity
-  product       = AlloyBinary ARROW (Signature sig) substitution
-  subsetExpr    = AlloyBinary IN (Field Decl { .. }) product
+  productExpr   = AlloyBinary ARROW (Signature sig) substitution
+  subsetExpr    = AlloyBinary IN (Field Decl { .. }) productExpr
   subsetAssertion =
-    translateFormula p ((show fieldVar) ++ " subset") subsetExpr
-  program = addAssertions p [multiplicityAssertion, subsetAssertion]
+    translateFormula smtScript ((show fieldVar) ++ " subset") subsetExpr
+  smtScript1 = addAssertions smtScript [multiplicityAssertion, subsetAssertion]
 
-translateDisjointFields :: SmtProgram -> [Decl] -> SmtProgram
-translateDisjointFields p _ = p -- ToDo: fix this
+translateDisjointFields :: SmtScript -> [Decl] -> SmtScript
+translateDisjointFields smtScript _ = smtScript -- ToDo: fix this
 
-translateDisjoint2Fields :: SmtProgram -> [Decl] -> SmtProgram
-translateDisjoint2Fields p _ = p -- ToDo: fix this
+translateDisjoint2Fields :: SmtScript -> [Decl] -> SmtScript
+translateDisjoint2Fields smtScript _ = smtScript -- ToDo: fix this
 
-translateSignatureFacts :: SmtProgram -> [Sig] -> SmtProgram
-translateSignatureFacts p [] = p
-translateSignatureFacts p xs = foldl translateSignatureFact p xs
+translateSignatureFacts :: SmtScript -> [Sig] -> SmtScript
+translateSignatureFacts smtScript [] = smtScript
+translateSignatureFacts smtScript xs =
+  foldl translateSignatureFact smtScript xs
 
-translateSignatureFact :: SmtProgram -> Sig -> SmtProgram
-translateSignatureFact p sig = case (sigfacts sig) of
-  [] -> p
+translateSignatureFact :: SmtScript -> Sig -> SmtScript
+translateSignatureFact smtScript sig = case (sigfacts sig) of
+  [] -> smtScript
   _  -> undefined
 
-translateFacts :: SmtProgram -> [Fact] -> SmtProgram
-translateFacts p xs = foldl translateFact p xs
+translateFacts :: SmtScript -> [Fact] -> SmtScript
+translateFacts smtScript xs = foldl translateFact smtScript xs
 
-translateFact :: SmtProgram -> Fact -> SmtProgram
-translateFact program (Fact name alloyExpr) = addAssertion program assertion
+translateFact :: SmtScript -> Fact -> SmtScript
+translateFact smtScript (Fact name alloyExpr) = addAssertion smtScript
+                                                             assertion
  where
   assertion    = Assertion name smtExpr
-  (_, smtExpr) = translate (program, emptyEnv, alloyExpr)
+  (_, smtExpr) = translate (smtScript, emptyEnv, alloyExpr)
 
-addSpecialAssertions :: SmtProgram -> SmtProgram
-addSpecialAssertions p = p -- ToDo: change this later
+addSpecialAssertions :: SmtScript -> SmtScript
+addSpecialAssertions smtScript = smtScript -- ToDo: change this later
 
-translateCommands :: SmtProgram -> [Command] -> SmtProgram
-translateCommands p xs = foldl translateCommand p xs
+translateCommands :: SmtScript -> [Command] -> SmtScript
+translateCommands smtScript xs = foldl translateCommand smtScript xs
 
-translateCommand :: SmtProgram -> Command -> SmtProgram
+translateCommand :: SmtScript -> Command -> SmtScript
 translateCommand _ _ = undefined
 
-translateFormula :: SmtProgram -> String -> AlloyExpr -> Assertion
-translateFormula p string alloyExpr = assertion
+translateFormula :: SmtScript -> String -> AlloyExpr -> Assertion
+translateFormula smtScript string alloyExpr = assertion
  where
-  (env, smtExpr) = translate (p, emptyEnv, alloyExpr)
+  (env, smtExpr) = translate (smtScript, emptyEnv, alloyExpr)
   formula        = translateAuxiliaryFormula env smtExpr
   assertion      = Assertion string formula
 
@@ -242,12 +248,13 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
       SmtQt ForAll variables (SmtBinary Implies body expr)
     _ -> error ("Auxiliary formula " ++ (show aux) ++ " is not supported")
 
-translate :: (SmtProgram, Env, AlloyExpr) -> (Env, SmtExpr)
-translate (_, env, Signature x          ) = (env, get env (label x))
+translate :: (SmtScript, Env, AlloyExpr) -> (Env, SmtExpr)
+translate (_, env, Signature x          ) = (env, SmtVar (get env (label x)))
 translate (_, _  , Field _              ) = undefined
-translate (_, _  , (AlloyConstant _ sig)) = case sig of
+translate (_, _  , (AlloyConstant c sig)) = case sig of
   SigInt -> undefined
-  _      -> error ("Constant " ++ " is not supported")
+  _      -> error ("Constant " ++ (show c) ++ " is not supported")
+translate (_, _, AlloyVar _              ) = undefined
 translate (_, _, (AlloyUnary SOMEOF _)   ) = undefined
 translate (_, _, (AlloyUnary LONEOF _)   ) = undefined
 translate (_, _, (AlloyUnary ONEOF _)    ) = undefined
@@ -269,8 +276,8 @@ translate (p, env, (AlloyUnary NOOP x)       ) = translate (p, env, x)
 -- binary expressions
 translate (p, env, (AlloyBinary ARROW x y)   ) = (env, SmtBinary Product a b)
  where
-  (aEnv, a) = translate (p, env, x)
-  (bEnv, b) = translate (p, env, y)
+  (_, a) = translate (p, env, x)
+  (_, b) = translate (p, env, y)
 
 translate (_, _, (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
 translate (_, _, (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
@@ -399,7 +406,7 @@ translate (p, env, (AlloyITE c x y)) =
 translate (_, _, (AlloyQt _ _ _) ) = undefined
 -- let expression
 translate (_, _, (AlloyLet _ _ _)) = undefined
-
+translate (_, _, AlloyList _ _   ) = undefined
 
 -- types
 translateType :: AlloyType -> Sort

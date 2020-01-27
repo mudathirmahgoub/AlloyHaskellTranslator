@@ -1,8 +1,8 @@
 module Model where
 import           AlloyOperators
 import           Alloy
-import           Translator
 
+a :: Sig
 a = aSig
  where
   aSig = PrimSig
@@ -23,9 +23,12 @@ a = aSig
                          ]
     }
 
+f1 :: AlloyVariable
 f1 = AlloyVariable "A/f1" (Prod [a, a])
+f2 :: AlloyVariable
 f2 = AlloyVariable "A/f2" (Prod [a, a])
 
+a0 :: Sig
 a0 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = a
@@ -34,7 +37,7 @@ a0 = PrimSig { isAbstract       = False
              , primFacts        = []
              , primFields       = []
              }
-
+a1 :: Sig
 a1 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = a
@@ -43,14 +46,14 @@ a1 = PrimSig { isAbstract       = False
              , primFacts        = []
              , primFields       = []
              }
-
+a2 :: Sig
 a2 = SubsetSig { parents            = [a0, a1]
                , subsetLabel        = "A2"
                , subsetMultiplicity = LONEOF
                , subsetFacts        = []
                , subsetFields       = []
                }
-
+b :: Sig
 b = PrimSig { isAbstract       = False
             , children         = [b0, b1, b2]
             , parent           = Univ
@@ -60,6 +63,7 @@ b = PrimSig { isAbstract       = False
             , primFields       = []
             }
 
+b0 :: Sig
 b0 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = b
@@ -69,7 +73,7 @@ b0 = PrimSig { isAbstract       = False
              , primFields       = []
              }
 
-
+b1 :: Sig
 b1 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = b
@@ -78,7 +82,7 @@ b1 = PrimSig { isAbstract       = False
              , primFacts        = []
              , primFields       = []
              }
-
+b2 :: Sig
 b2 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = b
@@ -88,6 +92,7 @@ b2 = PrimSig { isAbstract       = False
              , primFields       = []
              }
 
+alloyModel :: AlloyModel
 alloyModel = AlloyModel
   { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
   , facts      = []

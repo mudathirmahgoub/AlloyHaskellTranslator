@@ -152,19 +152,19 @@ alloyType (Signature SigString                ) = Prod [SigString]
 alloyType (Signature PrimSig {..}             ) = Prod [PrimSig { .. }]
 alloyType (Signature SubsetSig { parents = x }) = Prod x
 alloyType (Field     Decl {..}                ) = alloyType expr
--- unary
-alloyType (AlloyConstant _         sig        ) = Prod [sig]
-alloyType (AlloyUnary    SOMEOF    x          ) = alloyType x
-alloyType (AlloyUnary    LONEOF    x          ) = alloyType x -- review this vs lone
-alloyType (AlloyUnary    ONEOF     x          ) = alloyType x
-alloyType (AlloyUnary    SETOF     x          ) = alloyType x
-alloyType (AlloyUnary    EXACTLYOF _          ) = undefined -- review this
-alloyType (AlloyUnary    NOT       _          ) = AlloyBool
-alloyType (AlloyUnary    NO        _          ) = AlloyBool
-alloyType (AlloyUnary    SOME      _          ) = AlloyBool
-alloyType (AlloyUnary    LONE      _          ) = AlloyBool
-alloyType (AlloyUnary    ONE       _          ) = AlloyBool
-alloyType (AlloyUnary    TRANSPOSE x          ) = Prod (reverse ys)
+alloyType (AlloyConstant _ sig                ) = Prod [sig]
+alloyType (AlloyVar (AlloyVariable _ t)       ) = t
+alloyType (AlloyUnary SOMEOF    x             ) = alloyType x
+alloyType (AlloyUnary LONEOF    x             ) = alloyType x -- review this vs lone
+alloyType (AlloyUnary ONEOF     x             ) = alloyType x
+alloyType (AlloyUnary SETOF     x             ) = alloyType x
+alloyType (AlloyUnary EXACTLYOF _             ) = undefined -- review this
+alloyType (AlloyUnary NOT       _             ) = AlloyBool
+alloyType (AlloyUnary NO        _             ) = AlloyBool
+alloyType (AlloyUnary SOME      _             ) = AlloyBool
+alloyType (AlloyUnary LONE      _             ) = AlloyBool
+alloyType (AlloyUnary ONE       _             ) = AlloyBool
+alloyType (AlloyUnary TRANSPOSE x             ) = Prod (reverse ys)
     where Prod ys = alloyType x
 alloyType (AlloyUnary RCLOSURE    x) = alloyType x
 alloyType (AlloyUnary CLOSURE     x) = alloyType x
@@ -172,7 +172,6 @@ alloyType (AlloyUnary CARDINALITY _) = Prod [SigInt]
 alloyType (AlloyUnary CAST2INT    _) = undefined
 alloyType (AlloyUnary CAST2SIGINT _) = undefined
 alloyType (AlloyUnary NOOP        x) = alloyType x
--- binary expressions
 alloyType (AlloyBinary ARROW x y   ) = Prod (xs ++ ys)
   where
     Prod xs = alloyType x
@@ -224,12 +223,13 @@ alloyType (AlloyBinary NOT_IN           _ _) = AlloyBool
 alloyType (AlloyBinary AND              _ _) = AlloyBool
 alloyType (AlloyBinary OR               _ _) = AlloyBool
 alloyType (AlloyBinary IFF              _ _) = AlloyBool
--- if then else expression
 alloyType (AlloyITE    _                x _) = alloyType x
--- quantified expression
 alloyType (AlloyQt     _                _ _) = AlloyBool
--- let expression
 alloyType (AlloyLet    _                _ x) = alloyType x
+alloyType (AlloyList DISJOINT   _          ) = undefined
+alloyType (AlloyList TOTALORDER _          ) = undefined
+alloyType (AlloyList ListAND    _          ) = AlloyBool
+alloyType (AlloyList ListOR     _          ) = AlloyBool
 
 
 joinType :: AlloyType -> AlloyType -> AlloyType
@@ -277,15 +277,12 @@ removeMultiplicity x = x
 --                old       -> new       -> body
 substitute :: AlloyVariable -> AlloyExpr -> AlloyExpr -> AlloyExpr
 substitute _ _   (AlloyConstant x y) = (AlloyConstant x y)
-substitute x new (AlloyVar y) = if x == y then new else (AlloyVar y)
+substitute x new (AlloyVar  y      ) = if x == y then new else (AlloyVar y)
 substitute _ _   (Signature x      ) = (Signature x)
 substitute _ _   (Field     x      ) = (Field x)
-substitute x new (AlloyUnary op y) =
-    AlloyUnary op (substitute x new y)
-substitute x new (AlloyBinary op y z) = AlloyBinary
-    op
-    (substitute x new y)
-    (substitute x new z)
+substitute x new (AlloyUnary op y  ) = AlloyUnary op (substitute x new y)
+substitute x new (AlloyBinary op y z) =
+    AlloyBinary op (substitute x new y) (substitute x new z)
 substitute x new (AlloyITE a b c) = (AlloyITE u v w)
   where
     u = (substitute x new a)
@@ -295,19 +292,17 @@ substitute _ _ x = error ((show x) ++ "not implemented")
 
 hasFreeVariable :: AlloyVariable -> AlloyExpr -> Bool
 hasFreeVariable x (AlloyVar  y      ) = x == y
-hasFreeVariable _            (Signature _      ) = False
-hasFreeVariable _            (AlloyConstant _ _) = False
-hasFreeVariable x (AlloyUnary _ y) = hasFreeVariable x y
+hasFreeVariable _ (Signature _      ) = False
+hasFreeVariable _ (AlloyConstant _ _) = False
+hasFreeVariable x (AlloyUnary    _ y) = hasFreeVariable x y
 hasFreeVariable x (AlloyBinary _ y z) =
     hasFreeVariable x y || hasFreeVariable x z
-hasFreeVariable x (AlloyQt _ decls z) =
-    notQuantifier && hasFreeVariable x z
+hasFreeVariable x (AlloyQt _ decls z) = notQuantifier && hasFreeVariable x z
     where notQuantifier = notElem x (getDeclsVariables decls)
 
-hasFreeVariable x (AlloyList _ ys) =
-    any (hasFreeVariable x) ys
+hasFreeVariable x (AlloyList _ ys) = any (hasFreeVariable x) ys
 hasFreeVariable x (AlloyITE a b c) = u || v || w
-  where 
+  where
     u = (hasFreeVariable x a)
     v = (hasFreeVariable x b)
     w = (hasFreeVariable x c)
