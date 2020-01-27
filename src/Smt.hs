@@ -214,3 +214,7 @@ isTuple _         = False
 isSortExpr :: SmtExpr -> Bool
 isSortExpr (SortExpr _) = True
 isSortExpr _            = False
+
+--             old     -> new     -> body
+replaceExpr :: SmtExpr -> SmtExpr -> SmtExpr -> SmtExpr
+replaceExpr = undefined 

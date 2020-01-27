@@ -169,7 +169,7 @@ translateField :: Sig -> SmtScript -> Decl -> SmtScript
 -- this constraint, s can be in  B -> (A . r) -> A where B is another top level signature
 
 
-translateField sig smtScript Decl {..} = smtScript -- ToDo: fix this
+translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
  where
   fieldVar      = getConstant smtScript (concat (declNames Decl { .. }))
   this          = AlloyVariable "this" (Prod [sig])
@@ -249,9 +249,10 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
     _ -> error ("Auxiliary formula " ++ (show aux) ++ " is not supported")
 
 translate :: (SmtScript, Env, AlloyExpr) -> (Env, SmtExpr)
-translate (smtScript, env, Signature x          ) = (env, SmtVar (getConstant smtScript (label x)))
-translate (_, _  , Field _              ) = undefined
-translate (_, _  , (AlloyConstant c sig)) = case sig of
+translate (smtScript, env, Signature x) =
+  (env, SmtVar (getConstant smtScript (label x)))
+translate (_, _, Field _              ) = undefined
+translate (_, _, (AlloyConstant c sig)) = case sig of
   SigInt -> undefined
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
 translate (_, _, AlloyVar _              ) = undefined
@@ -367,15 +368,38 @@ translate (p, env, (AlloyBinary GTE x y)) =
               (second (translate (p, env, x)))
               (second (translate (p, env, y)))
   )
-translate (_, _  , (AlloyBinary NOT_LT _ _) ) = undefined
-translate (_, _  , (AlloyBinary NOT_LTE _ _)) = undefined
-translate (_, _  , (AlloyBinary NOT_GT _ _) ) = undefined
-translate (_, _  , (AlloyBinary NOT_GTE _ _)) = undefined
-translate (_, _  , (AlloyBinary SHL _ _)    ) = undefined
-translate (_, _  , (AlloyBinary SHA _ _)    ) = undefined
-translate (_, _  , (AlloyBinary SHR _ _)    ) = undefined
-translate (_, _  , (AlloyBinary IN _ _)     ) = undefined
-translate (p, env, (AlloyBinary NOT_IN x y) ) = (env, SmtUnary Not expr)
+translate (_        , _  , (AlloyBinary NOT_LT _ _) ) = undefined
+translate (_        , _  , (AlloyBinary NOT_LTE _ _)) = undefined
+translate (_        , _  , (AlloyBinary NOT_GT _ _) ) = undefined
+translate (_        , _  , (AlloyBinary NOT_GTE _ _)) = undefined
+translate (_        , _  , (AlloyBinary SHL _ _)    ) = undefined
+translate (_        , _  , (AlloyBinary SHA _ _)    ) = undefined
+translate (_        , _  , (AlloyBinary SHR _ _)    ) = undefined
+
+-- Translation of 'x in y' where A = translate x, B = translate Y
+-- left sort | right sort | Translation
+-- -------------------------------------
+-- tuple     | tuple      | (= A B)
+-- tuple     | set        | (member tuple set)
+-- set       | set        | (subset A B)
+translate (smtScript, env, (AlloyBinary IN x y)     ) = (env, auxiliaryB)
+ where
+  smtIn     = memberOrSubset a b (smtType a) (smtType b)
+  (envA, a) = translate (smtScript, env, x)
+  (envB, b) = translate (smtScript, env, y)
+  memberOrSubset u v (Tuple _) (Tuple _) = SmtBinary Eq u v -- not sure this occurs        
+  memberOrSubset u v (Tuple _) (Set   _) = SmtBinary Member u v
+  memberOrSubset u v (Set   _) (Set   _) = SmtBinary Subset u v
+  memberOrSubset u v _ (Set _) = SmtBinary Member (SmtMultiArity MkTuple [u]) v
+  memberOrSubset u v _ _ =
+    error ("Invalid operation: " ++ (show u) ++ " in " ++ (show v))
+  auxiliaryA = translateAuxiliaryFormula envA smtIn
+  auxiliaryB = case auxiliaryFormula envB of
+    Nothing                   -> auxiliaryA
+    Just (SmtQt Exists _ aux) -> replaceExpr b a aux -- ToDo: review this (important)
+    _                         -> error ("This should never happen")
+
+translate (p, env, (AlloyBinary NOT_IN x y)) = (env, SmtUnary Not expr)
   where (_, expr) = translate (p, env, AlloyBinary IN x y)
 translate (p, env, (AlloyBinary AND x y)) =
   ( env
