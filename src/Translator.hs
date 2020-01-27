@@ -249,7 +249,7 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
     _ -> error ("Auxiliary formula " ++ (show aux) ++ " is not supported")
 
 translate :: (SmtScript, Env, AlloyExpr) -> (Env, SmtExpr)
-translate (_, env, Signature x          ) = (env, SmtVar (get env (label x)))
+translate (smtScript, env, Signature x          ) = (env, SmtVar (getConstant smtScript (label x)))
 translate (_, _  , Field _              ) = undefined
 translate (_, _  , (AlloyConstant c sig)) = case sig of
   SigInt -> undefined

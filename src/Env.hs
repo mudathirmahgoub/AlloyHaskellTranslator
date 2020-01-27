@@ -6,17 +6,16 @@ import           Smt
 
 data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtVariable)]}
 
-get :: Env -> String -> SmtVariable
-get Env {..} x = getVariable variablesMap x
+get :: (SmtScript, Env) -> String -> SmtVariable
+get (smtScript, Env {..}) x = getVariable variablesMap x
  where
-  getVariable []           _ = error (x ++ " not found")
+  getVariable []           _ = getConstant smtScript x -- lookup the variable in the smt script
   getVariable ((k, v) : t) _ = if k == x then v else (getVariable t x)
 
-contains :: Env -> String -> Bool
-contains Env {..} = containsVariable variablesMap
- where
-  containsVariable []           _ = False
-  containsVariable ((k, _) : t) x = k == x || (containsVariable t x)
+contains :: (SmtScript, Env) -> String -> Bool
+contains (smtScript, Env {..}) x =
+  any (\(string, _) -> x == string) variablesMap
+    || (containsConstant smtScript x)
 
 put :: Env -> (String, SmtVariable) -> Env
 put env entry = env { variablesMap = entry : variablesMap env }

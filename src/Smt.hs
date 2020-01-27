@@ -23,6 +23,10 @@ getConstant smtScript x = getByName (constants smtScript) x
     getByName (v : vs) n = if name v == n then v else getByName vs n
     getByName _        n = error (n ++ " not found")
 
+containsConstant :: SmtScript -> String -> Bool
+containsConstant SmtScript {..} x =
+    any (\SmtVariable {..} -> x == name) constants
+
 addConstant :: SmtScript -> SmtVariable -> SmtScript
 addConstant smtScript f = smtScript { constants = f : constants smtScript }
 
