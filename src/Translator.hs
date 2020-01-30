@@ -435,7 +435,7 @@ translate (smtScript, env, (AlloyQt op decls body) ) = smtQt
       rangeConstraints = concat (map second variableTuples)
       env1 = addVariables env variables
       disjointConstraints = translateDisjoint decls
-      constraints = foldl smtTrue (rangeConstraints ++ disjointConstraints)
+      constraints = SmtMultiArity And (rangeConstraints ++ disjointConstraints)
       (env2, bodyExpr) = translate (smtScript, env1, body)
       smtQt = translateQt env2 op variables constraints  bodyExpr
 
