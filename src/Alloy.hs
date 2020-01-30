@@ -27,9 +27,9 @@ data Scope
     }
     deriving (Show, Eq)
 
-data AlloyVariable = AlloyVariable String AlloyType deriving (Eq)
+data AlloyVariable = AlloyVariable {alloyVarName :: String, alloyVarType ::AlloyType} deriving (Eq)
 instance Show AlloyVariable where
-    show (AlloyVariable x _) = x
+    show = alloyVarName
 
 data AlloyExpr
     = Signature Sig
@@ -60,7 +60,7 @@ declNames Decl {..} = getNames names
     getNames (x : xs) = n : (getNames xs) where (AlloyVariable n _) = x
 
 splitDecls :: [Decl] -> [Decl]
-splitDecls decls = concatMap splitDecl decls
+splitDecls = concatMap splitDecl
 
 splitDecl :: Decl -> [Decl]
 splitDecl Decl {..} =
@@ -314,5 +314,5 @@ getDeclsVariables decls = concatMap names (splitDecls decls)
 -- precondition: Decl has a singleton alloy variable
 getFieldName :: Decl -> String
 getFieldName Decl {..} = case names of
-    (AlloyVariable x _: []) -> x
-    x -> error ("Expect singleton. Found " ++ (show x))
+    (AlloyVariable x _ : []) -> x
+    x                        -> error ("Expect singleton. Found " ++ (show x))
