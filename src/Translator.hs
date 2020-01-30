@@ -251,7 +251,8 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
 translate :: (SmtScript, Env, AlloyExpr) -> (Env, SmtExpr)
 translate (smtScript, env, Signature x) =
   (env, SmtVar (getConstant smtScript (label x)))
-translate (_, _, Field _              ) = undefined
+translate (smtScript, env, Field Decl {..}) =
+  (env, SmtVar (getConstant smtScript (getFieldName Decl{..})))
 translate (_, _, (AlloyConstant c sig)) = case sig of
   SigInt -> undefined
   _      -> error ("Constant " ++ (show c) ++ " is not supported")

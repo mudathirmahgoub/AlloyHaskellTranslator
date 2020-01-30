@@ -310,3 +310,8 @@ hasFreeVariable _ x = error ((show x) ++ "not implemented")
 
 getDeclsVariables :: [Decl] -> [AlloyVariable]
 getDeclsVariables decls = concatMap names (splitDecls decls)
+
+getFieldName :: Decl -> String
+getFieldName Decl {..} = case names of
+    (AlloyVariable x _: []) -> x
+    x -> error ("Expect singleton. Found " ++ (show x))
