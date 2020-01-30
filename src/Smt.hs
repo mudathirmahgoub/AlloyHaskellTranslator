@@ -215,6 +215,10 @@ isSortExpr :: SmtExpr -> Bool
 isSortExpr (SortExpr _) = True
 isSortExpr _            = False
 
+getElementSort :: Sort -> Sort
+getElementSort (Set x) =  x
+getElementSort x = error ("Expected a set. Found " ++ (show x))
+
 --             old     -> new     -> body
 replaceExpr :: SmtExpr -> SmtExpr -> SmtExpr -> SmtExpr
 replaceExpr = undefined 

@@ -144,8 +144,8 @@ translateFields smtScript sig = smtScript4
   individuals = splitDecls groups
   smtScript1  = foldl (declareField sig) smtScript individuals
   smtScript2  = foldl (translateField sig) smtScript1 individuals
-  smtScript3  = translateDisjointFields smtScript2 groups
-  smtScript4  = translateDisjoint2Fields smtScript3 individuals
+  smtScript3  = translateDisjointDecls smtScript2 groups
+  smtScript4  = translateDisjoint2Decls smtScript3 individuals
 
 declareField :: Sig -> SmtScript -> Decl -> SmtScript
 declareField sig smtScript Decl {..} = addConstant smtScript constant
@@ -196,11 +196,11 @@ translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
     translateFormula smtScript ((show fieldVar) ++ " subset") subsetExpr
   smtScript1 = addAssertions smtScript [multiplicityAssertion, subsetAssertion]
 
-translateDisjointFields :: SmtScript -> [Decl] -> SmtScript
-translateDisjointFields smtScript _ = smtScript -- ToDo: fix this
+translateDisjointDecls :: SmtScript -> [Decl] -> SmtScript
+translateDisjointDecls smtScript _ = smtScript -- ToDo: fix this
 
-translateDisjoint2Fields :: SmtScript -> [Decl] -> SmtScript
-translateDisjoint2Fields smtScript _ = smtScript -- ToDo: fix this
+translateDisjoint2Decls :: SmtScript -> [Decl] -> SmtScript
+translateDisjoint2Decls smtScript _ = smtScript -- ToDo: fix this
 
 translateSignatureFacts :: SmtScript -> [Sig] -> SmtScript
 translateSignatureFacts smtScript [] = smtScript
@@ -421,14 +421,24 @@ translate (p, env, (AlloyBinary IFF x y)) =
               (second (translate (p, env, y)))
   )
 -- if then else expression
-translate (p, env, (AlloyITE c x y)) =
+translate (smtScript, env, (AlloyITE c x y)) =
   ( env
-  , SmtIte (second (translate (p, env, c)))
-           (second (translate (p, env, x)))
-           (second (translate (p, env, y)))
+  , SmtIte (second (translate (smtScript, env, c)))
+           (second (translate (smtScript, env, x)))
+           (second (translate (smtScript, env, y)))
   )
 -- quantified expression
-translate (_, _, (AlloyQt _ _ _) ) = undefined
+translate (smtScript, env, (AlloyQt op decls body) ) = smtQt
+ where
+      variableTuples = map (translateDecl smtScript env) (splitDecls decls)   
+      variables = map first variableTuples
+      rangeConstraints = concat (map second variableTuples)
+      env1 = addVariables env variables
+      disjointConstraints = translateDisjoint decls
+      constraints = foldl smtTrue (rangeConstraints ++ disjointConstraints)
+      (env2, bodyExpr) = translate (smtScript, env1, body)
+      smtQt = translateQt env2 op variables constraints  bodyExpr
+
 -- let expression
 translate (_, _, (AlloyLet _ _ _)) = undefined
 translate (_, _, AlloyList _ _   ) = undefined
@@ -438,3 +448,54 @@ translateType :: AlloyType -> Sort
 translateType (Prod xs) = Set (Tuple ys)
   where ys = map (\x -> if isInt (Signature x) then UInt else Atom) xs
 translateType AlloyBool = SmtBool
+
+
+
+-- SmtExpr for multiplicity and range constraints
+-- ToDo: optimize this such that this is called once for Decl like (x, y : expr)    
+translateDecl :: SmtScript -> Env -> Decl -> (SmtVariable, [SmtExpr])
+translateDecl smtScript env decl = (var, exprs) 
+  where 
+    varName = concat (declNames decl)
+    (var, exprs) = translateDeclExpr (smtScript, env, expr decl) 
+    translateDeclExpr (smtScript, env, AlloyUnary ONEOF x) = (variable, [member])
+      where 
+        (_, smtExpr) = translate (smtScript, env,x)
+        varSort = case (smtType smtExpr) of 
+          Set (Tuple (x:[])) -> Tuple (x:[]) -- arity 1
+          s -> error ("Expected a relation with arity 1. Found " ++ (show s))      
+        variable = SmtVariable { name = varName, sort = varSort, isOriginal = True } 
+        member = SmtBinary Member (SmtVar variable) smtExpr  
+      
+    translateDeclExpr (smtScript, env, AlloyUnary SOMEOF x) = (variable, [subset, notEmpty])
+      where 
+        (_, smtExpr) = translate (smtScript, env,x)
+        varSort = smtType smtExpr
+        variable = SmtVariable { name = varName, sort = varSort, isOriginal = True }    
+        subset = SmtBinary Subset (SmtVar variable) smtExpr
+        emptySet = SmtUnary EmptySet (SortExpr varSort)
+        notEmpty = SmtUnary Not (SmtBinary Eq (SmtVar variable) emptySet) 
+    translateDeclExpr (smtScript, env, AlloyUnary LONEOF x) = (variable, [subset, loneExpr])
+      where 
+        (_, smtExpr) = translate (smtScript, env,x)
+        varSort = smtType smtExpr
+        variable = SmtVariable { name = varName, sort = varSort, isOriginal = True }    
+        subset = SmtBinary Subset (SmtVar variable) smtExpr
+        emptySet = SmtUnary EmptySet (SortExpr varSort)
+        empty = SmtBinary Eq (SmtVar variable) emptySet
+        elementSort = getElementSort varSort
+        element = SmtVariable { name = varName  ++ "Singleton", sort = elementSort, isOriginal = False }
+        singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar element]))
+        isSingleton = SmtBinary Eq (SmtVar variable) singleton
+        existsExpr  = SmtQt Exists [element] subset
+        loneExpr = SmtMultiArity Or [empty, existsExpr]
+
+    translateDeclExpr (smtScript, env, AlloyUnary SETOF x) =  (variable, [subset])
+      where 
+        (_, smtExpr) = translate (smtScript, env,x)
+        varSort = smtType smtExpr
+        variable = SmtVariable { name = varName, sort = varSort, isOriginal = True }    
+        subset = SmtBinary Subset (SmtVar variable) smtExpr
+
+    translateDeclExpr (smtScript, env, AlloyBinary _ _ _) = undefined
+    translateDeclExpr (_, _, x) = error ("Invalid decl expr: " ++ (show x))
