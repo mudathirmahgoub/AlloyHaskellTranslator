@@ -60,7 +60,7 @@ declNames Decl {..} = getNames names
     getNames (x : xs) = n : (getNames xs) where (AlloyVariable n _) = x
 
 splitDecls :: [Decl] -> [Decl]
-splitDecls decls = concat (map splitDecl decls)
+splitDecls decls = concatMap splitDecl decls
 
 splitDecl :: Decl -> [Decl]
 splitDecl Decl {..} =
@@ -311,6 +311,7 @@ hasFreeVariable _ x = error ((show x) ++ "not implemented")
 getDeclsVariables :: [Decl] -> [AlloyVariable]
 getDeclsVariables decls = concatMap names (splitDecls decls)
 
+-- precondition: Decl has a singleton alloy variable
 getFieldName :: Decl -> String
 getFieldName Decl {..} = case names of
     (AlloyVariable x _: []) -> x
