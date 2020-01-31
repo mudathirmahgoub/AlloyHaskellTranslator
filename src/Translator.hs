@@ -140,7 +140,7 @@ translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 translateFields :: SmtScript -> Sig -> SmtScript
 translateFields smtScript sig = smtScript4
  where
-  groups        = fields sig
+  groups        = fields sig 
   individuals   = splitDecls groups
   smtScript1    = foldl (declareField sig) smtScript individuals
   smtScript2    = foldl (translateField sig) smtScript1 individuals
@@ -453,6 +453,9 @@ translate (smtScript, env, (AlloyITE c x y)) =
            (second (translate (smtScript, env, y)))
   )
 -- quantified expression
+-- all x: some A| all y: one x | some y
+-- check En
+-- check with Andy with quantifiers versus nested quantifiers
 translate (smtScript, env, (AlloyQt op decls body)) = (env2, smtQt)
  where
   variableTuples   = map (translateDecl smtScript env) (splitDecls decls)
