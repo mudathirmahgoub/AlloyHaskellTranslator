@@ -75,9 +75,10 @@ translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
   isSingleton = SmtBinary Eq (SmtVar c) singleton
   subset      = SmtBinary Subset (SmtVar c) singleton
   empty       = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
+  isEmpty     = SmtBinary Eq empty (SmtVar c)
   existsOne   = SmtQt Exists [x] isSingleton
   existsSome  = SmtQt Exists [x] subset
-  orExpr      = SmtMultiArity Or [existsOne, empty]
+  orExpr      = SmtMultiArity Or [existsOne, isEmpty]
   assertion   = case (multiplicity sig) of
     ONEOF  -> Assertion ("one " ++ (label sig)) existsOne
     LONEOF -> Assertion ("lone " ++ (label sig)) orExpr
@@ -135,9 +136,9 @@ translateAbstract smtScript PrimSig {..} =
       union     = foldl function empty variables
       variables = map (SmtVar . getConstant smtScript . label) children
       sigSort   = translateType (Prod [PrimSig { .. }])
-      empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+      empty     = SmtUnary EmptySet (SortExpr (sort sigVar))
       equal     = SmtBinary Eq (SmtVar sigVar) union
-      assertion = Assertion ("Abstract " ++ primLabel) equal
+      assertion = Assertion ("abstract " ++ primLabel) equal
 translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 
 translateFields :: SmtScript -> Sig -> SmtScript

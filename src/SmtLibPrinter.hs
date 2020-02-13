@@ -72,7 +72,9 @@ printSmtLibExpr (SmtIte x y z) =
     ++ ")"
 printSmtLibExpr (SmtLet list x) =
   "(let (" ++ (concatMap printVarExpr list) ++ ")" ++ (printSmtLibExpr x) ++ ")"
-  where printVarExpr x = show x
+ where
+  printVarExpr (v, e) =
+    "(" ++ (printVariableName v) ++ " " ++ (printSmtLibExpr e) ++ ")"
 printSmtLibExpr (SmtQt quantifier list x) =
   "("
     ++ (printSmtLibQuantifier quantifier)
