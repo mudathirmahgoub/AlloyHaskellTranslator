@@ -190,13 +190,13 @@ translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
   smtMultiplicity = smtExpr
     where (_, smtExpr) = translate (smtScript, emptyEnv, allExpr)
   multiplicityAssertion =
-    Assertion ((show fieldVar) ++ " multiplicity") smtMultiplicity
+    Assertion ((show fieldVar) ++ " field multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
   substitution  = substitute this (Signature sig) noMuliplicity
   productExpr   = AlloyBinary ARROW (Signature sig) substitution
   subsetExpr    = AlloyBinary IN (Field Decl { .. }) productExpr
   subsetAssertion =
-    translateFormula smtScript ((show fieldVar) ++ " subset") subsetExpr
+    translateFormula smtScript ((show fieldVar) ++ " field subset") subsetExpr
   smtScript1 = addAssertions smtScript [multiplicityAssertion, subsetAssertion]
 
 translateDisjointDecls :: SmtScript -> Env -> [Decl] -> SmtExpr
@@ -323,12 +323,10 @@ translate (_, _, (AlloyBinary LONE_ARROW_SOME _ _) ) = undefined
 translate (_, _, (AlloyBinary LONE_ARROW_ONE _ _)  ) = undefined
 translate (_, _, (AlloyBinary LONE_ARROW_LONE _ _) ) = undefined
 translate (_, _, (AlloyBinary ISSEQ_ARROW_LONE _ _)) = undefined
-translate (p, env, (AlloyBinary JOIN x y)) =
-  ( env
-  , SmtBinary Join
-              (second (translate (p, env, x)))
-              (second (translate (p, env, y)))
-  )
+translate (p, env, (AlloyBinary JOIN x y)) = (env , SmtBinary Join smtX smtY)
+  where 
+    smtX = makeRelation (second (translate (p, env, x)))
+    smtY = makeRelation (second (translate (p, env, y)))
 translate (_, _, (AlloyBinary DOMAIN _ _)) = undefined
 translate (_, _, (AlloyBinary RANGE _ _) ) = undefined
 translate (p, env, (AlloyBinary INTERSECT x y)) =

@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Smt where
 
+import           Utils
 import           SmtOperators
 
 data SmtScript
@@ -125,7 +126,7 @@ smtType (SmtBinary Intersection x _      ) = smtType x
 smtType (SmtBinary SetMinus     x _      ) = smtType x
 smtType (SmtBinary Member       _ _      ) = SmtBool
 smtType (SmtBinary Subset       _ _      ) = SmtBool
-smtType (SmtBinary Join         _ _      ) = undefined
+smtType (SmtBinary Join         x y      ) = smtJoinType (smtType x) (smtType y)
 smtType (SmtBinary Product      x y      ) = case (xType, yType) of
     (Set (Tuple xs), Set (Tuple ys)) -> Set (Tuple (xs ++ ys))
     _ -> error ("Invalid product of " ++ (show xType) ++ " " ++ (show yType))
@@ -222,3 +223,18 @@ getElementSort x       = error ("Expected a set. Found " ++ (show x))
 --             old     -> new     -> body
 replaceExpr :: SmtExpr -> SmtExpr -> SmtExpr -> SmtExpr
 replaceExpr = undefined
+
+
+smtJoinType :: Sort -> Sort -> Sort
+smtJoinType (Set (Tuple xs)) (Set (Tuple ys)) =
+    Set (Tuple ((excludeLast xs) ++ (excludeFirst ys)))
+smtJoinType x y = error ("Join Error: " ++ show (x, y))
+
+-- SmtInt | SmtBool | Atom | UInt | Tuple [Sort] | Set Sort
+makeRelation :: SmtExpr -> SmtExpr
+makeRelation x = case smtType x of 
+    Set (Tuple _) -> x
+    Atom -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
+    UInt -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
+    Tuple _ -> SmtUnary Singleton x
+    _ -> error((show x) ++ " is not a relation")

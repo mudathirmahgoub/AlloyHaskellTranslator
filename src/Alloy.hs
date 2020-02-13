@@ -192,7 +192,7 @@ alloyType (AlloyBinary LONE_ARROW_SOME  x y) = alloyType (AlloyBinary ARROW x y)
 alloyType (AlloyBinary LONE_ARROW_ONE   x y) = alloyType (AlloyBinary ARROW x y)
 alloyType (AlloyBinary LONE_ARROW_LONE  x y) = alloyType (AlloyBinary ARROW x y)
 alloyType (AlloyBinary ISSEQ_ARROW_LONE _ _) = undefined
-alloyType (AlloyBinary JOIN x y) = joinType (alloyType x) (alloyType y)
+alloyType (AlloyBinary JOIN x y) = alloyJoinType (alloyType x) (alloyType y)
 alloyType (AlloyBinary DOMAIN           _ y) = alloyType y
 alloyType (AlloyBinary RANGE            _ y) = alloyType y
 alloyType (AlloyBinary INTERSECT        x _) = alloyType x
@@ -232,10 +232,11 @@ alloyType (AlloyList ListAND    _          ) = AlloyBool
 alloyType (AlloyList ListOR     _          ) = AlloyBool
 
 
-joinType :: AlloyType -> AlloyType -> AlloyType
-joinType AlloyBool _         = error "Can not apply join to boolean"
-joinType _         AlloyBool = error "Can not apply join to boolean"
-joinType (Prod xs) (Prod ys) = Prod ((excludeLast xs) ++ (excludeFirst ys))
+alloyJoinType :: AlloyType -> AlloyType -> AlloyType
+alloyJoinType AlloyBool _         = error "Can not apply join to boolean"
+alloyJoinType _         AlloyBool = error "Can not apply join to boolean"
+alloyJoinType (Prod xs) (Prod ys) =
+    Prod ((excludeLast xs) ++ (excludeFirst ys))
 
 
 isInt :: AlloyExpr -> Bool
