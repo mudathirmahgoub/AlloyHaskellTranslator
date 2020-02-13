@@ -140,7 +140,7 @@ translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 translateFields :: SmtScript -> Sig -> SmtScript
 translateFields smtScript sig = smtScript4
  where
-  groups        = fields sig 
+  groups        = fields sig
   individuals   = splitDecls groups
   smtScript1    = foldl (declareField sig) smtScript individuals
   smtScript2    = foldl (translateField sig) smtScript1 individuals
@@ -181,8 +181,8 @@ translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
   s             = AlloyVariable "s" (alloyType thisJoinField)
   sInExpr       = AlloyBinary IN (AlloyVar s) expr
   alloyLet      = AlloyLet s thisJoinField sInExpr
-  decl          = Decl { names     = [s]
-                       , expr      = Signature sig
+  decl          = Decl { names     = [this]
+                       , expr      = AlloyUnary ONEOF (Signature sig)
                        , disjoint  = False
                        , disjoint2 = False
                        }
@@ -281,7 +281,8 @@ translate (smtScript, env, Field Decl {..}) =
 translate (_, _, (AlloyConstant c sig)) = case sig of
   SigInt -> undefined
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
-translate (_, _, AlloyVar _              ) = undefined
+translate (smtScript, env, AlloyVar x) = (env, SmtVar variable)
+  where variable = getVariable (smtScript, env) (alloyVarName x)
 translate (_, _, (AlloyUnary SOMEOF _)   ) = undefined
 translate (_, _, (AlloyUnary LONEOF _)   ) = undefined
 translate (_, _, (AlloyUnary ONEOF _)    ) = undefined
@@ -454,7 +455,6 @@ translate (smtScript, env, (AlloyITE c x y)) =
   )
 -- quantified expression
 -- all x: some A| all y: one x | some y
--- check En
 -- check with Andy with quantifiers versus nested quantifiers
 translate (smtScript, env, (AlloyQt op decls body)) = (env2, smtQt)
  where
@@ -462,31 +462,38 @@ translate (smtScript, env, (AlloyQt op decls body)) = (env2, smtQt)
   variables        = map first variableTuples
   rangeConstraints = concat (map second variableTuples)
   env1             = addVariables env variables
-  disjoint         = translateDisjointDecls smtScript env decls
+  disjoint         = translateDisjointDecls smtScript env1 decls
   constraints      = SmtMultiArity And (disjoint : rangeConstraints)
   (env2, bodyExpr) = translate (smtScript, env1, body)
   smtQt            = translateQt op
-    where 
-      translateQt All = case auxiliaryFormula env2 of
-        Nothing ->
-          SmtQt ForAll variables (SmtBinary Implies constraints bodyExpr)
-        Just (SmtQt Exists existsVars existsBody) -> SmtQt
-          ForAll
-          variables
-          (SmtBinary Implies constraints newBody)
-          where
-            newBody =
-              (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
-  translateQt No = SmtUnary Not (translateQt All)
-  translateQt Lone = undefined
-  translateQt Some = undefined
-  translateQt Sum = undefined
+   where
+    translateQt All = case auxiliaryFormula env2 of
+      Nothing ->
+        SmtQt ForAll variables (SmtBinary Implies constraints bodyExpr)
+      Just (SmtQt Exists existsVars existsBody) -> SmtQt
+        ForAll
+        variables
+        (SmtBinary Implies constraints newBody)
+       where
+        newBody =
+          (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
+  translateQt No            = SmtUnary Not (translateQt All)
+  translateQt Lone          = undefined
+  translateQt Some          = undefined
+  translateQt Sum           = undefined
   translateQt Comprehension = undefined
-    
+
 
 -- let expression
-translate (_, _, (AlloyLet _ _ _)) = undefined
-translate (_, _, AlloyList _ _   ) = undefined
+translate (smtScript, env, (AlloyLet var alloyExpr body)) = (env3, smtLet)
+ where
+  smtVar          = SmtVariable (alloyVarName var) (smtType smtExpr) True
+  (env1, smtExpr) = translate (smtScript, env, alloyExpr)
+  env2            = addVariable env1 smtVar
+  (env3, smtBody) = translate (smtScript, env2, body)
+  smtLet          = SmtLet [(smtVar, smtExpr)] smtBody
+
+translate (_, _, AlloyList _ _) = undefined
 
 -- types
 translateType :: AlloyType -> Sort

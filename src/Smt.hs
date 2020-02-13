@@ -58,7 +58,7 @@ data SmtExpr
     | SmtUnary SmtUnaryOp SmtExpr
     | SmtBinary SmtBinaryOp SmtExpr SmtExpr
     | SmtIte SmtExpr SmtExpr SmtExpr
-    | SmtLet SmtVariable SmtExpr SmtExpr
+    | SmtLet [(SmtVariable, SmtExpr)] SmtExpr
     | SmtQt SmtQuantifier [SmtVariable] SmtExpr
     | SortExpr Sort
     | SmtMultiArity SmtMultiArityOp [SmtExpr]
@@ -138,7 +138,7 @@ smtType (SmtIte    _      x _) = smtType x
 -- quantified expression
 smtType (SmtQt     _      _ _) = SmtBool
 -- let expression
-smtType (SmtLet    _      _ x) = smtType x
+smtType (SmtLet _ x          ) = smtType x
 smtType x = error ("type of " ++ (show x) ++ " is not implemented")
 
 checkType :: SmtExpr -> Bool
@@ -192,7 +192,7 @@ checkType (SmtIte    _      x y   ) = smtType x == smtType y
 -- quantified expression
 checkType (SmtQt     _      _ body) = smtType body == SmtBool
 -- let expression
-checkType (SmtLet    _      _ _   ) = undefined
+checkType (SmtLet _ _             ) = undefined
 checkType x = error ("checkType of " ++ (show x) ++ " is not implemented")
 
 isSet :: Sort -> Bool
@@ -216,9 +216,9 @@ isSortExpr (SortExpr _) = True
 isSortExpr _            = False
 
 getElementSort :: Sort -> Sort
-getElementSort (Set x) =  x
-getElementSort x = error ("Expected a set. Found " ++ (show x))
+getElementSort (Set x) = x
+getElementSort x       = error ("Expected a set. Found " ++ (show x))
 
 --             old     -> new     -> body
 replaceExpr :: SmtExpr -> SmtExpr -> SmtExpr -> SmtExpr
-replaceExpr = undefined 
+replaceExpr = undefined

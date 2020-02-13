@@ -18,7 +18,8 @@ contains (smtScript, Env {..}) x =
     || (containsConstant smtScript x)
 
 addVariable :: Env -> SmtVariable -> Env
-addVariable env variable = env { variablesMap = (name variable, variable) : variablesMap env }
+addVariable env variable =
+  env { variablesMap = (name variable, variable) : variablesMap env }
 
 
 addVariables :: Env -> [SmtVariable] -> Env
