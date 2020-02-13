@@ -22,6 +22,8 @@ printSmtLibScript SmtScript {..} =
     ++ (concatMap declareSmtLibSort sorts)
     ++ (concatMap declareSmtLibConstants constants)
     ++ (concatMap printSmtLibAssert assertions)
+    ++ "(check-sat)\n" 
+    ++ "(get-model)\n"
 
 declareSmtLibSort :: Sort -> String
 declareSmtLibSort s = "(declare-sort " ++ (show s) ++ " 0) \n"

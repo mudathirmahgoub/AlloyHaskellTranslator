@@ -73,7 +73,7 @@ translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
   x           = SmtVariable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
   isSingleton = SmtBinary Eq (SmtVar c) singleton
-  subset      = SmtBinary Subset (SmtVar c) singleton
+  subset      = SmtBinary Subset singleton (SmtVar c)
   empty       = SmtUnary EmptySet (SortExpr (Set (Tuple [s])))
   isEmpty     = SmtBinary Eq empty (SmtVar c)
   existsOne   = SmtQt Exists [x] isSingleton

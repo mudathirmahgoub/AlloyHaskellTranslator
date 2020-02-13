@@ -58,7 +58,7 @@ b = PrimSig { isAbstract       = False
             , children         = [b0, b1, b2]
             , parent           = Univ
             , primLabel        = "B"
-            , primMultiplicity = ONEOF
+            , primMultiplicity = SOMEOF
             , primFacts        = []
             , primFields       = []
             }
