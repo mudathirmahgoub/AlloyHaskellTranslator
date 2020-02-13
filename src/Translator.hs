@@ -65,8 +65,11 @@ translateSigMultiplicity :: SmtScript -> Sig -> SmtScript
 -- use different from empty set
 translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
  where
-  c           = getConstant smtScript (label sig)
-  s           = translateType (Prod [sig])
+  c = getConstant smtScript (label sig)
+  s = case translateType (Prod [sig]) of
+    Set (Tuple [Atom]) -> Atom
+    Set (Tuple [UInt]) -> UInt
+    _                  -> error ("invalid sig sort " ++ (show s))
   x           = SmtVariable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
   isSingleton = SmtBinary Eq (SmtVar c) singleton
@@ -114,7 +117,7 @@ translateDisjointChildren smtScript PrimSig {..} = addAssertion smtScript
     yVar = getConstant smtScript (label y)
   disjointChildren zs = map function zs
   sigSort   = translateType (Prod [PrimSig { .. }])
-  empty     = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+  empty     = SmtUnary EmptySet (SortExpr sigSort)
   pairs     = [ (u, v) | u <- children, v <- children, (label u) < (label v) ]
   andExpr   = SmtMultiArity And (disjointChildren pairs)
   assertion = Assertion ("disjoint children of " ++ primLabel) andExpr
@@ -147,7 +150,7 @@ translateFields smtScript sig = smtScript4
   disjointExprs = translateDisjointDecls smtScript2 emptyEnv groups
   smtScript3    = addAssertion
     smtScript2
-    (Assertion ("Disjoint " ++ (show groups)) disjointExprs)
+    (Assertion ("disjoint " ++ (show groups)) disjointExprs)
   smtScript4 = translateDisjoint2Decls smtScript3 individuals
 
 declareField :: Sig -> SmtScript -> Decl -> SmtScript
@@ -211,10 +214,9 @@ translateDisjointDecl smtScript env decl = andExpr
     empty
     (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
-    xVar = getVariable (smtScript, env) (alloyVarName x)
-    yVar = getVariable (smtScript, env) (alloyVarName y)
-  sigSort = translateType (Prod [PrimSig { .. }])
-  empty   = SmtUnary EmptySet (SortExpr (Set (Tuple [sigSort])))
+    xVar  = getVariable (smtScript, env) (alloyVarName x)
+    yVar  = getVariable (smtScript, env) (alloyVarName y)
+    empty = SmtUnary EmptySet (SortExpr (sort xVar))
   pairs =
     [ (u, v)
     | u <- names decl
@@ -307,26 +309,26 @@ translate (p, env, (AlloyBinary ARROW x y)   ) = (env, SmtBinary Product a b)
   (_, a) = translate (p, env, x)
   (_, b) = translate (p, env, y)
 
-translate (_, _, (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
-translate (_, _, (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
-translate (_, _, (AlloyBinary ANY_ARROW_LONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_ANY _ _)  ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_SOME _ _) ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_ONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_LONE _ _) ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_ANY _ _)   ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_SOME _ _)  ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_ONE _ _)   ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_LONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_ANY _ _)  ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_SOME _ _) ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_ONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_LONE _ _) ) = undefined
-translate (_, _, (AlloyBinary ISSEQ_ARROW_LONE _ _)) = undefined
-translate (p, env, (AlloyBinary JOIN x y)) = (env , SmtBinary Join smtX smtY)
-  where 
-    smtX = makeRelation (second (translate (p, env, x)))
-    smtY = makeRelation (second (translate (p, env, y)))
+translate (_, _  , (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
+translate (_, _  , (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
+translate (_, _  , (AlloyBinary ANY_ARROW_LONE _ _)  ) = undefined
+translate (_, _  , (AlloyBinary SOME_ARROW_ANY _ _)  ) = undefined
+translate (_, _  , (AlloyBinary SOME_ARROW_SOME _ _) ) = undefined
+translate (_, _  , (AlloyBinary SOME_ARROW_ONE _ _)  ) = undefined
+translate (_, _  , (AlloyBinary SOME_ARROW_LONE _ _) ) = undefined
+translate (_, _  , (AlloyBinary ONE_ARROW_ANY _ _)   ) = undefined
+translate (_, _  , (AlloyBinary ONE_ARROW_SOME _ _)  ) = undefined
+translate (_, _  , (AlloyBinary ONE_ARROW_ONE _ _)   ) = undefined
+translate (_, _  , (AlloyBinary ONE_ARROW_LONE _ _)  ) = undefined
+translate (_, _  , (AlloyBinary LONE_ARROW_ANY _ _)  ) = undefined
+translate (_, _  , (AlloyBinary LONE_ARROW_SOME _ _) ) = undefined
+translate (_, _  , (AlloyBinary LONE_ARROW_ONE _ _)  ) = undefined
+translate (_, _  , (AlloyBinary LONE_ARROW_LONE _ _) ) = undefined
+translate (_, _  , (AlloyBinary ISSEQ_ARROW_LONE _ _)) = undefined
+translate (p, env, (AlloyBinary JOIN x y)) = (env, SmtBinary Join smtX smtY)
+ where
+  smtX = makeRelation (second (translate (p, env, x)))
+  smtY = makeRelation (second (translate (p, env, y)))
 translate (_, _, (AlloyBinary DOMAIN _ _)) = undefined
 translate (_, _, (AlloyBinary RANGE _ _) ) = undefined
 translate (p, env, (AlloyBinary INTERSECT x y)) =
