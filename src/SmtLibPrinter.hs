@@ -4,9 +4,22 @@ module SmtLibPrinter where
 import           SmtOperators
 import           Smt
 
+prelude = unlines
+  [ "(set-logic ALL)"
+  , "(set-option :tlimit 30000)"
+  , "(set-option :block-models literals)"
+  , "(set-option :finite-model-find true)"
+  , "(set-option :produce-models true)"
+  , "(set-option :incremental true)"
+  , "(set-option :sets-ext true)"
+  , "(declare-sort Atom 0)"
+  , "(declare-sort UInt 0)"
+  ]
+
 printSmtLibScript :: SmtScript -> String
 printSmtLibScript SmtScript {..} =
-  (concatMap declareSmtLibSort sorts)
+  prelude
+    ++ (concatMap declareSmtLibSort sorts)
     ++ (concatMap declareSmtLibConstants constants)
     ++ (concatMap printSmtLibAssert assertions)
 
@@ -33,7 +46,7 @@ printSmtLibSort s = case s of
 
 printSmtLibAssert :: Assertion -> String
 printSmtLibAssert (Assertion comment expr) =
-  ";" ++ comment ++ "\n" ++  "(assert " ++ (printSmtLibExpr expr) ++ ")\n"
+  ";" ++ comment ++ "\n" ++ "(assert " ++ (printSmtLibExpr expr) ++ ")\n"
 
 
 printSmtLibExpr :: SmtExpr -> String
@@ -68,7 +81,7 @@ printSmtLibExpr (SmtQt quantifier list x) =
     ++ ")"
     ++ (printSmtLibExpr x)
     ++ ")"
-printSmtLibExpr (SortExpr sort) = printSmtLibSort sort
+printSmtLibExpr (SortExpr sort       ) = printSmtLibSort sort
 printSmtLibExpr (SmtMultiArity And []) = "true"
 printSmtLibExpr (SmtMultiArity op xs) =
   "("
