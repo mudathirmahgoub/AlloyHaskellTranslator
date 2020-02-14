@@ -60,8 +60,17 @@ b = PrimSig { isAbstract       = False
             , primLabel        = "B"
             , primMultiplicity = SOMEOF
             , primFacts        = []
-            , primFields       = []
+             , primFields       = [ Decl
+                             { names     = [g1]
+                             , expr      = AlloyUnary ONEOF (Signature a)
+                             , disjoint  = True
+                             , disjoint2 = True
+                             }
+                         ]
             }
+
+g1 :: AlloyVariable
+g1 = AlloyVariable "A/g1" (Prod [a, a])
 
 b0 :: Sig
 b0 = PrimSig { isAbstract       = False

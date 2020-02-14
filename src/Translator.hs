@@ -286,9 +286,10 @@ translate (_, _, (AlloyConstant c sig)) = case sig of
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
 translate (smtScript, env, AlloyVar x) = (env, SmtVar variable)
   where variable = getVariable (smtScript, env) (alloyVarName x)
-translate (_, _, (AlloyUnary SOMEOF _)   ) = undefined
-translate (_, _, (AlloyUnary LONEOF _)   ) = undefined
-translate (_, _, (AlloyUnary ONEOF _)    ) = undefined
+translate (_, _, (AlloyUnary SOMEOF _)) = undefined
+translate (_, _, (AlloyUnary LONEOF _)) = undefined
+translate (smtScript, env, (AlloyUnary ONEOF x)) =
+  translate (smtScript, env, x)
 translate (_, _, (AlloyUnary SETOF _)    ) = undefined
 translate (_, _, (AlloyUnary EXACTLYOF _)) = undefined
 translate (p, env, (AlloyUnary NOT x)) =
