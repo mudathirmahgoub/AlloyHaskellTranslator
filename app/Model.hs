@@ -101,9 +101,16 @@ b2 = PrimSig { isAbstract       = False
              , primFields       = []
              }
 
+fact1 :: Fact
+fact1 = Fact "fact1 a1 != a2" (AlloyBinary NOT_EQUALS (Signature a1) (Signature a2))
+
+fact2 :: Fact
+fact2 = Fact "fact2 b1 != b2" (AlloyBinary NOT_EQUALS (Signature b1) (Signature b2))
+
 alloyModel :: AlloyModel
 alloyModel = AlloyModel
   { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
-  , facts      = []
+  , facts      = [fact1]
   , commands   = []
   }
+
