@@ -11,7 +11,7 @@ a = aSig
     , parent           = Univ
     , primLabel        = "A"
     , primMultiplicity = ONEOF
-    , primFacts        = []
+    , primFacts        = [aFact1]
     , primFields       = [ Decl
                              { names     = [f1, f2]
                              , expr      = AlloyBinary ARROW
@@ -22,6 +22,21 @@ a = aSig
                              }
                          ]
     }
+
+aFact1 = AlloyUnary SOME (Signature a)
+
+
+fact1 :: Fact
+fact1 =
+  Fact "fact1 a1 != a2" (AlloyBinary NOT_EQUALS (Signature a1) (Signature a2))
+
+fact2 :: Fact
+fact2 = Fact
+  "#A > 1"
+  (AlloyBinary GTE
+               (AlloyUnary CARDINALITY (Signature a))
+               (AlloyConstant "2" SigInt)
+  )
 
 f1 :: AlloyVariable
 f1 = AlloyVariable "A/f1" (Prod [a, a])
@@ -54,20 +69,20 @@ a2 = SubsetSig { parents            = [a0, a1]
                , subsetFields       = []
                }
 b :: Sig
-b = PrimSig { isAbstract       = False
-            , children         = [b0, b1, b2]
-            , parent           = Univ
-            , primLabel        = "B"
-            , primMultiplicity = SOMEOF
-            , primFacts        = []
-             , primFields       = [ Decl
-                             { names     = [g1]
-                             , expr      = AlloyUnary ONEOF (Signature a)
-                             , disjoint  = True
-                             , disjoint2 = True
-                             }
-                         ]
-            }
+b = PrimSig
+  { isAbstract       = False
+  , children         = [b0, b1, b2]
+  , parent           = Univ
+  , primLabel        = "B"
+  , primMultiplicity = SOMEOF
+  , primFacts        = []
+  , primFields       = [ Decl { names     = [g1]
+                              , expr      = AlloyUnary ONEOF (Signature a)
+                              , disjoint  = True
+                              , disjoint2 = True
+                              }
+                       ]
+  }
 
 g1 :: AlloyVariable
 g1 = AlloyVariable "A/g1" (Prod [a, a])
@@ -101,16 +116,15 @@ b2 = PrimSig { isAbstract       = False
              , primFields       = []
              }
 
-fact1 :: Fact
-fact1 = Fact "fact1 a1 != a2" (AlloyBinary NOT_EQUALS (Signature a1) (Signature a2))
 
-fact2 :: Fact
-fact2 = Fact "fact2 b1 != b2" (AlloyBinary NOT_EQUALS (Signature b1) (Signature b2))
+fact3 :: Fact
+fact3 =
+  Fact "fact3 b1 != b2" (AlloyBinary NOT_EQUALS (Signature b1) (Signature b2))
 
 alloyModel :: AlloyModel
 alloyModel = AlloyModel
   { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
-  , facts      = [fact1, fact2]
+  , facts      = [fact1, fact3]
   , commands   = []
   }
 

@@ -27,11 +27,12 @@ declareSignatures :: SmtScript -> [Sig] -> SmtScript
 declareSignatures smtScript xs = foldl declareSignature smtScript xs
 
 declareSignature :: SmtScript -> Sig -> SmtScript
-declareSignature smtScript Univ      = addConstant smtScript univAtom
-declareSignature smtScript SigInt    = addConstant smtScript univInt
-declareSignature smtScript None      = addConstant smtScript none
-declareSignature _         SigString = undefined
-declareSignature smtScript sig       = addConstant
+declareSignature smtScript Univ   = addConstant smtScript univAtom
+declareSignature smtScript SigInt = addConstant smtScript univInt
+declareSignature smtScript None   = addConstant smtScript none
+declareSignature _ SigString =
+  error ("Strings are not supported yet in alloy.")
+declareSignature smtScript sig = addConstant
   smtScript
   SmtVariable { name = label sig, sort = s, isOriginal = True }
   where s = translateType (Prod [sig])
@@ -40,10 +41,11 @@ translateHierarchy :: SmtScript -> [Sig] -> SmtScript
 translateHierarchy smtScript xs = foldl translateSignature smtScript xs
 
 translateSignature :: SmtScript -> Sig -> SmtScript
-translateSignature smtScript Univ         = smtScript
-translateSignature smtScript SigInt       = smtScript
-translateSignature smtScript None         = smtScript
-translateSignature _         SigString    = undefined
+translateSignature smtScript Univ   = smtScript
+translateSignature smtScript SigInt = smtScript
+translateSignature smtScript None   = smtScript
+translateSignature _ SigString =
+  error ("Strings are not supported yet in alloy.")
 translateSignature smtScript PrimSig {..} = smtScript5
  where
   smtScript0 = foldl translateSignature smtScript children
@@ -235,10 +237,24 @@ translateSignatureFacts smtScript [] = smtScript
 translateSignatureFacts smtScript xs =
   foldl translateSignatureFact smtScript xs
 
+-- sig s{...}{expr} is translated into
+-- {all this: s | expr}
 translateSignatureFact :: SmtScript -> Sig -> SmtScript
 translateSignatureFact smtScript sig = case (sigfacts sig) of
   [] -> smtScript
-  _  -> undefined
+  _  -> smtScript1   where
+    sigVar       = getConstant smtScript (label sig)
+    smtScript1   = addAssertion smtScript assertion
+    assertion    = Assertion ((show sigVar) ++ " sig facts") smtExpr
+    (_, smtExpr) = translate (smtScript, emptyEnv, allExpr)
+    allExpr      = AlloyQt All [decl] andExpr
+    andExpr      = AlloyList ListAND (sigfacts sig)
+    this         = AlloyVariable "this" (Prod [sig])
+    decl         = Decl { names     = [this]
+                        , expr      = AlloyUnary ONEOF (Signature sig)
+                        , disjoint  = False
+                        , disjoint2 = False
+                        }
 
 translateFacts :: SmtScript -> [Fact] -> SmtScript
 translateFacts smtScript xs = foldl translateFact smtScript xs
@@ -294,8 +310,15 @@ translate (_, _, (AlloyUnary SETOF _)    ) = undefined
 translate (_, _, (AlloyUnary EXACTLYOF _)) = undefined
 translate (p, env, (AlloyUnary NOT x)) =
   (env, SmtUnary Not (second (translate (p, env, x))))
-translate (_, _  , (AlloyUnary NO _)         ) = undefined
-translate (_, _  , (AlloyUnary SOME _)       ) = undefined
+translate (_        , _  , (AlloyUnary NO _)) = undefined
+translate (smtScript, env, AlloyUnary SOME x) = (env, someExpr)
+ where
+  someExpr        = translateAuxiliaryFormula env1 notEmpty
+  (env1, setExpr) = translate (smtScript, env, x)
+  empty           = SmtUnary EmptySet (SortExpr (smtType setExpr))
+  equal           = SmtBinary Eq empty setExpr
+  notEmpty        = SmtUnary Not equal
+
 translate (_, _  , (AlloyUnary LONE _)       ) = undefined
 translate (_, _  , (AlloyUnary ONE _)        ) = undefined
 translate (_, _  , (AlloyUnary TRANSPOSE _)  ) = undefined
@@ -495,7 +518,13 @@ translate (smtScript, env, (AlloyLet var alloyExpr body)) = (env3, smtLet)
   (env3, smtBody) = translate (smtScript, env2, body)
   smtLet          = SmtLet [(smtVar, smtExpr)] smtBody
 
-translate (_, _, AlloyList _ _) = undefined
+translate (smtScript, env, AlloyList op xs) = case op of
+  ListAND -> (env, SmtMultiArity And exprs)
+    where exprs = map second (map (\x -> translate (smtScript, env, x)) xs)
+  ListOR     -> undefined
+  TOTALORDER -> undefined
+  DISJOINT   -> undefined
+
 
 -- types
 translateType :: AlloyType -> Sort
