@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4e52f296d1e1c6bcc600e82e9a3bc5b847d57a09565784519db1eec70fa87df1
+-- hash: 99cbd8acb5e125684d40e38b9c8861cfdcc5b4dc03aeda22f574439c6e0c0c50
 
 name:           AlloyHaskellTranslator
 version:        0.1.0.0
@@ -41,6 +41,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , mtl
     , tasty
     , tasty-hunit
   default-language: Haskell2010
@@ -56,6 +57,7 @@ executable AlloyHaskellTranslator-exe
   build-depends:
       AlloyHaskellTranslator
     , base >=4.7 && <5
+    , mtl
     , tasty
     , tasty-hunit
   default-language: Haskell2010
@@ -71,6 +73,7 @@ test-suite AlloyHaskellTranslator-test
   build-depends:
       AlloyHaskellTranslator
     , base >=4.7 && <5
+    , mtl
     , tasty
     , tasty-hunit
   default-language: Haskell2010

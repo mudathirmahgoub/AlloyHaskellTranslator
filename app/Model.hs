@@ -124,7 +124,7 @@ fact3 =
 alloyModel :: AlloyModel
 alloyModel = AlloyModel
   { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
-  , facts      = [fact1, fact3]
+  , facts      = [fact1, fact2, fact3]
   , commands   = []
   }
 

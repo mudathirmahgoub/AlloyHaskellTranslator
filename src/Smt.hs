@@ -3,13 +3,15 @@ module Smt where
 
 import           Utils
 import           SmtOperators
+import           Control.Monad.State
 
 data SmtScript
     = SmtScript
     {
         sorts :: [Sort],
         constants :: [SmtVariable],
-        assertions :: [Assertion]
+        assertions :: [Assertion],
+        freshIndex :: State Int
     } deriving (Show, Eq)
 
 emptySmtScript :: SmtScript
