@@ -12,8 +12,6 @@ prelude = unlines
   , "(set-option :produce-models true)"
   , "(set-option :incremental true)"
   , "(set-option :sets-ext true)"
-  , "(declare-sort Atom 0)"
-  , "(declare-sort UInt 0)"
   ]
 
 printSmtLibScript :: SmtScript -> String
@@ -22,11 +20,12 @@ printSmtLibScript SmtScript {..} =
     ++ (concatMap declareSmtLibSort sorts)
     ++ (concatMap declareSmtLibConstants constants)
     ++ (concatMap printSmtLibAssert assertions)
-    ++ "(check-sat)\n" 
+    ++ "(check-sat)\n"
     ++ "(get-model)\n"
 
 declareSmtLibSort :: Sort -> String
-declareSmtLibSort s = "(declare-sort " ++ (show s) ++ " 0) \n"
+declareSmtLibSort (UninterpretedSort x y) = "(declare-sort " ++ x ++ " " ++ (show y) ++ ") \n"
+declareSmtLibSort _ = error("Invalid sort  declaration")
 
 declareSmtLibConstants :: SmtVariable -> String
 declareSmtLibConstants SmtVariable {..} =
@@ -38,10 +37,9 @@ declareSmtLibConstants SmtVariable {..} =
 
 printSmtLibSort :: Sort -> String
 printSmtLibSort s = case s of
-  SmtInt  -> "Int"
-  SmtBool -> "Bool"
-  Atom    -> "Atom"
-  UInt    -> "UInt"
+  SmtInt                -> "Int"
+  SmtBool               -> "Bool"
+  UninterpretedSort x _ -> x
   Tuple sorts ->
     "(Tuple " ++ (concatMap (\x -> (printSmtLibSort x) ++ " ") sorts) ++ ")"
   Set sort -> "(Set " ++ (printSmtLibSort sort) ++ ")"

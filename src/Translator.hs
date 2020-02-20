@@ -69,9 +69,8 @@ translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
  where
   c = getConstant smtScript (label sig)
   s = case translateType (Prod [sig]) of
-    Set (Tuple [Atom]) -> Atom
-    Set (Tuple [UInt]) -> UInt
-    _                  -> error ("invalid sig sort " ++ (show s))
+    Set (Tuple ((UninterpretedSort x y) : [])) -> (UninterpretedSort x y)
+    _ -> error ("invalid sig sort " ++ (show s))
   x           = SmtVariable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
   isSingleton = SmtBinary Eq (SmtVar c) singleton
@@ -515,7 +514,10 @@ translate (smtScript, env, AlloyList op xs) = case op of
 -- types
 translateType :: AlloyType -> Sort
 translateType (Prod xs) = Set (Tuple ys)
-  where ys = map (\x -> if isInt (Signature x) then UInt else Atom) xs
+ where
+  ys = map
+    (\x -> if isInt (Signature x) then uninterpretedUInt else uninterpretedAtom)
+    xs
 translateType AlloyBool = SmtBool
 
 

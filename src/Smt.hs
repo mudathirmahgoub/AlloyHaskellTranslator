@@ -23,7 +23,10 @@ data SmtScript
     } deriving (Show, Eq)
 
 emptySmtScript :: SmtScript
-emptySmtScript = SmtScript { sorts = [], constants = [], assertions = [] }
+emptySmtScript = SmtScript { sorts      = [uninterpretedAtom, uninterpretedUInt]
+                           , constants  = []
+                           , assertions = []
+                           }
 
 addSort :: Sort -> SmtScript -> SmtScript
 addSort s smtScript = smtScript { sorts = s : sorts smtScript }
@@ -81,29 +84,35 @@ smtTrue = SmtBoolConstant True
 smtFalse :: SmtExpr
 smtFalse = SmtBoolConstant False
 
-data Sort = SmtInt | SmtBool | Atom | UInt | Tuple [Sort] | Set Sort deriving (Show, Eq)
+data Sort = SmtInt | SmtBool | Tuple [Sort] | Set Sort | UninterpretedSort String Int deriving (Show, Eq)
+
+uninterpretedAtom = UninterpretedSort "Atom" 0
+uninterpretedUInt = UninterpretedSort "UInt" 0
 
 data Assertion = Assertion String SmtExpr deriving (Show, Eq)
 
 none :: SmtVariable
-none =
-    SmtVariable { name = "none", sort = Set (Tuple [Atom]), isOriginal = False }
+none = SmtVariable { name       = "none"
+                   , sort       = Set (Tuple [uninterpretedAtom])
+                   , isOriginal = False
+                   }
 
 univAtom :: SmtVariable
 univAtom = SmtVariable { name       = "univAtom"
-                       , sort       = Set (Tuple [Atom])
+                       , sort       = Set (Tuple [uninterpretedAtom])
                        , isOriginal = False
                        }
 
 idenAtom :: SmtVariable
-idenAtom = SmtVariable { name       = "idenAtom"
-                       , sort       = Set (Tuple [Atom, Atom])
-                       , isOriginal = False
-                       }
+idenAtom = SmtVariable
+    { name       = "idenAtom"
+    , sort       = Set (Tuple [uninterpretedAtom, uninterpretedAtom])
+    , isOriginal = False
+    }
 
 univInt :: SmtVariable
 univInt = SmtVariable { name       = "univInt"
-                      , sort       = Set (Tuple [UInt])
+                      , sort       = Set (Tuple [uninterpretedUInt])
                       , isOriginal = False
                       }
 
@@ -243,8 +252,7 @@ smtJoinType x y = error ("Join Error: " ++ show (x, y))
 -- SmtInt | SmtBool | Atom | UInt | Tuple [Sort] | Set Sort
 makeRelation :: SmtExpr -> SmtExpr
 makeRelation x = case smtType x of
-    Set (Tuple _) -> x
-    Atom          -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
-    UInt          -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
-    Tuple _       -> SmtUnary Singleton x
-    _             -> error ((show x) ++ " is not a relation")
+    Set (Tuple _)         -> x
+    UninterpretedSort _ _ -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
+    Tuple _               -> SmtUnary Singleton x
+    _                     -> error ((show x) ++ " is not a relation")
