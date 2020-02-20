@@ -4,11 +4,15 @@ module Env where
 
 import           Smt
 
-data Env = Env{
-   sorts :: [Sort],
-        declarations :: [SmtDeclaration],
-        assertions :: [Assertion],
-  auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtDeclaration)], lastIndex :: Int}
+data Env = Env
+  {
+    sorts :: [Sort],
+    declarations :: [SmtDeclaration],
+    assertions :: [Assertion],
+    auxiliaryFormula::Maybe SmtExpr,
+    variablesMap :: [(String, SmtDeclaration)],
+    lastIndex :: Int
+  }
 
 addSort :: Sort -> Env -> Env
 addSort s env = env { sorts = s : sorts env }
@@ -29,8 +33,7 @@ matchName (SortDeclaration (UninterpretedSort x _)) y = x == y
 matchName _                _ = error ("Unsupported variable name")
 
 addDeclaration :: Env -> SmtDeclaration -> Env
-addDeclaration env f =
-  env { declarations = f : declarations env }
+addDeclaration env f = env { declarations = f : declarations env }
 
 addDeclarations :: Env -> [SmtDeclaration] -> Env
 addDeclarations = foldl addDeclaration
@@ -52,8 +55,7 @@ getVariable (env, Env {..}) x = get variablesMap x
 
 contains :: (Env, Env) -> String -> Bool
 contains (env, Env {..}) x =
-  any (\(string, _) -> x == string) variablesMap
-    || (containsDeclaration env x)
+  any (\(string, _) -> x == string) variablesMap || (containsDeclaration env x)
 
 addVariable :: Env -> SmtDeclaration -> Env
 addVariable env variable =
