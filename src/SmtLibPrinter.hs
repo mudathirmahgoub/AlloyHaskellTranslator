@@ -105,6 +105,12 @@ printSmtLibExpr (SmtMultiArity op xs) =
     ++ " "
     ++ (concatMap printSmtLibExpr xs)
     ++ ")"
+printSmtLibExpr (SmtCall f args) = 
+  "("
+    ++ (printVariableName f)
+    ++ " "
+    ++ (concatMap printSmtLibExpr args)
+    ++ ")"
 
 printVariableName :: SmtDeclaration -> String
 printVariableName SmtVariable {..} =

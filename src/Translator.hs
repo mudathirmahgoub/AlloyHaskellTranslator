@@ -724,10 +724,15 @@ translateArithmetic (env, (AlloyBinary op x y)) =
   error (show (AlloyBinary op x y))
 
 translateIntConstant :: Env -> Int -> (Env, SmtExpr)
-translateIntConstant env n = (env1, smtExpr)
+translateIntConstant env n = (env3, smtExpr)
  where
-  env1 = if containsDeclaration env varName
+  env3 = if containsDeclaration env varName
     then env
-    else addDeclaration env (SmtVariable varName uninterpretedUInt False [])
-  varName = "u." ++ (show n)
-  smtExpr = SmtVar (getDeclaration env1 varName)
+    else env2
+      where 
+        env1 = addDeclaration env (SmtVariable varName uninterpretedUInt False [])
+        env2 = addAssertion env1 assertion
+        assertion = Assertion (show n) (SmtBinary Eq callExpr (SmtIntConstant n))
+        callExpr = SmtCall intValue [smtExpr]
+  varName = "u." ++ (show n)  
+  smtExpr = SmtVar (getDeclaration env3 varName)
