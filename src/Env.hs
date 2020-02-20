@@ -20,7 +20,7 @@ data Env = RootEnv
 addSort :: Sort -> Env -> Env
 addSort s env = case env of
   RootEnv {..} -> env { sorts = s : sorts }
-  Env {..}     -> addSort s parent
+  Env {..}     -> env { parent = p } where p = addSort s parent
 
 getDeclaration :: Env -> String -> SmtDeclaration
 getDeclaration env x = case env of
@@ -43,13 +43,15 @@ matchName _                _ = error ("Unsupported variable name")
 addDeclaration :: Env -> SmtDeclaration -> Env
 addDeclaration env f = case env of
   RootEnv {..} -> env { declarations = f : declarations }
-  Env {..}     -> addDeclaration parent f
+  Env {..}     -> env { parent = p } where p = addDeclaration parent f
 
 addDeclarations :: Env -> [SmtDeclaration] -> Env
 addDeclarations = foldl addDeclaration
 
 addAssertion :: Env -> Assertion -> Env
-addAssertion env a = env { assertions = a : assertions env }
+addAssertion env a = case env of
+  RootEnv {..} -> env { assertions = a : assertions }
+  Env {..}     -> env { parent = p } where p = addAssertion parent a
 
 
 addAssertions :: Env -> [Assertion] -> Env

@@ -24,7 +24,7 @@ printSmtLibScript RootEnv {..} =
     ++ (concatMap printSmtLibAssert assertions)
     ++ "(check-sat)\n"
     ++ "(get-model)\n"
-printSmtLibScript _ = error "Expects a root environment here"
+printSmtLibScript Env{..} = printSmtLibScript parent
 
 declareSmtLibSort :: Sort -> String
 declareSmtLibSort (UninterpretedSort x y) =
