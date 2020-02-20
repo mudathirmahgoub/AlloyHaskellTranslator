@@ -173,7 +173,7 @@ translateField :: Sig -> Env -> Decl -> Env
 -- this constraint, s can be in  B -> (A . r) -> A where B is another top level signature
 
 
-translateField sig env Decl {..} = env1 -- ToDo: fix this
+translateField sig env Decl {..} = env2
  where
   fieldVar      = getDeclaration env (concat (declNames Decl { .. }))
   this          = AlloyVariable "this" (Prod [sig])
@@ -200,9 +200,8 @@ translateField sig env Decl {..} = env1 -- ToDo: fix this
   substitution  = substitute this (Signature sig) noMuliplicity
   productExpr   = AlloyBinary ARROW (Signature sig) substitution
   subsetExpr    = AlloyBinary IN (Field Decl { .. }) productExpr
-  subsetAssertion =
-    translateFormula env ((show fieldVar) ++ " field subset") subsetExpr
-  env1 = addAssertions env [multiplicityAssertion, subsetAssertion]
+  env1 = translateFormula env ((show fieldVar) ++ " field subset") subsetExpr
+  env2          = addAssertion env multiplicityAssertion
 
 translateDisjointDecls :: Env -> [Decl] -> SmtExpr
 translateDisjointDecls env decls =
@@ -278,8 +277,8 @@ translateCommands env xs = foldl translateCommand env xs
 translateCommand :: Env -> Command -> Env
 translateCommand _ _ = undefined
 
-translateFormula :: Env -> String -> AlloyExpr -> Assertion
-translateFormula env string alloyExpr = assertion
+translateFormula :: Env -> String -> AlloyExpr -> Env
+translateFormula env string alloyExpr = env2
  where
   (env1, smtExpr) = translate
     ( Env { auxiliaryFormula = Nothing, variablesMap = [], parent = env }
@@ -287,6 +286,9 @@ translateFormula env string alloyExpr = assertion
     )
   formula   = translateAuxiliaryFormula env1 smtExpr
   assertion = Assertion string formula
+  env2      = case env1 of
+    Env {..} -> addAssertion parent assertion
+    _        -> error "Expect Env{..}"
 
 translateAuxiliaryFormula :: Env -> SmtExpr -> SmtExpr
 translateAuxiliaryFormula Env { auxiliaryFormula = Nothing } expr = expr
