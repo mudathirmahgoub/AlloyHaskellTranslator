@@ -18,7 +18,7 @@ printSmtLibScript :: SmtScript -> String
 printSmtLibScript SmtScript {..} =
   prelude
     ++ (concatMap declareSmtLibSort sorts)
-    ++ (concatMap declareSmtLibConstants constants)
+    ++ (concatMap declareSmtLibConstants declarations)
     ++ (concatMap printSmtLibAssert assertions)
     ++ "(check-sat)\n"
     ++ "(get-model)\n"
@@ -27,13 +27,14 @@ declareSmtLibSort :: Sort -> String
 declareSmtLibSort (UninterpretedSort x y) = "(declare-sort " ++ x ++ " " ++ (show y) ++ ") \n"
 declareSmtLibSort _ = error("Invalid sort  declaration")
 
-declareSmtLibConstants :: SmtVariable -> String
+declareSmtLibConstants :: SmtDeclaration -> String
 declareSmtLibConstants SmtVariable {..} =
   "(declare-const "
     ++ (printVariableName SmtVariable { .. })
     ++ " "
     ++ (printSmtLibSort sort)
     ++ " ) \n"
+declareSmtLibConstants _ = error "Not a constant"
 
 printSmtLibSort :: Sort -> String
 printSmtLibSort s = case s of
@@ -92,12 +93,12 @@ printSmtLibExpr (SmtMultiArity op xs) =
     ++ (concatMap printSmtLibExpr xs)
     ++ ")"
 
-printVariableName :: SmtVariable -> String
+printVariableName :: SmtDeclaration -> String
 printVariableName SmtVariable {..} =
   if isOriginal then ("|" ++ name ++ " |") else name
 
 
-printSmtLibVariable :: SmtVariable -> String
+printSmtLibVariable :: SmtDeclaration -> String
 printSmtLibVariable SmtVariable {..} = "(" ++ varName ++ " " ++ varSort ++ ")"
  where
   varName = if isOriginal then ("|" ++ name ++ " |") else name

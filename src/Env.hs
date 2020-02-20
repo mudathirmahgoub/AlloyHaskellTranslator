@@ -4,25 +4,25 @@ module Env where
 
 import           Smt
 
-data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtVariable)], lastIndex :: Int}
+data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtDeclaration)], lastIndex :: Int}
 
-getVariable :: (SmtScript, Env) -> String -> SmtVariable
+getVariable :: (SmtScript, Env) -> String -> SmtDeclaration
 getVariable (smtScript, Env {..}) x = get variablesMap x
  where
-  get []           _ = getConstant smtScript x -- lookup the variable in the smt script
+  get []           _ = getDeclaration smtScript x -- lookup the variable in the smt script
   get ((k, v) : t) _ = if k == x then v else (get t x)
 
 contains :: (SmtScript, Env) -> String -> Bool
 contains (smtScript, Env {..}) x =
   any (\(string, _) -> x == string) variablesMap
-    || (containsConstant smtScript x)
+    || (containsDeclaration smtScript x)
 
-addVariable :: Env -> SmtVariable -> Env
+addVariable :: Env -> SmtDeclaration -> Env
 addVariable env variable =
   env { variablesMap = (name variable, variable) : variablesMap env }
 
 
-addVariables :: Env -> [SmtVariable] -> Env
+addVariables :: Env -> [SmtDeclaration] -> Env
 addVariables = foldl addVariable
 
 first :: (a, b) -> a

@@ -27,12 +27,12 @@ declareSignatures :: SmtScript -> [Sig] -> SmtScript
 declareSignatures smtScript xs = foldl declareSignature smtScript xs
 
 declareSignature :: SmtScript -> Sig -> SmtScript
-declareSignature smtScript Univ   = addConstant smtScript univAtom
-declareSignature smtScript SigInt = addConstant smtScript univInt
-declareSignature smtScript None   = addConstant smtScript none
+declareSignature smtScript Univ   = addDeclaration smtScript univAtom
+declareSignature smtScript SigInt = addDeclaration smtScript univInt
+declareSignature smtScript None   = addDeclaration smtScript none
 declareSignature _ SigString =
   error ("Strings are not supported yet in alloy.")
-declareSignature smtScript sig = addConstant
+declareSignature smtScript sig = addDeclaration
   smtScript
   SmtVariable { name = label sig, sort = s, isOriginal = True }
   where s = translateType (Prod [sig])
@@ -67,9 +67,10 @@ translateSigMultiplicity :: SmtScript -> Sig -> SmtScript
 -- use different from empty set
 translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
  where
-  c = getConstant smtScript (label sig)
+  c = getDeclaration smtScript (label sig)
   s = case translateType (Prod [sig]) of
-    Set (Tuple ((UninterpretedSort x y) : [])) -> (UninterpretedSort x y)
+    Set (Tuple ((UninterpretedSort u arity) : [])) ->
+      (UninterpretedSort u arity)
     _ -> error ("invalid sig sort " ++ (show s))
   x           = SmtVariable { name = "x", sort = s, isOriginal = False }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
@@ -90,15 +91,15 @@ translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
 translateParent :: SmtScript -> Sig -> SmtScript
 translateParent smtScript PrimSig {..} = addAssertion smtScript assertion
  where
-  childVar  = getConstant smtScript primLabel
-  parentVar = getConstant smtScript (label parent)
+  childVar  = getDeclaration smtScript primLabel
+  parentVar = getDeclaration smtScript (label parent)
   subset    = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   assertion = Assertion ("parent " ++ primLabel) subset
 
 translateParent smtScript SubsetSig {..} = addAssertion smtScript assertion
  where
-  childVar   = getConstant smtScript subsetLabel
-  parentVars = map (getConstant smtScript . label) parents
+  childVar   = getDeclaration smtScript subsetLabel
+  parentVars = map (getDeclaration smtScript . label) parents
   function parentVar = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
@@ -115,8 +116,8 @@ translateDisjointChildren smtScript PrimSig {..} = addAssertion smtScript
     empty
     (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
-    xVar = getConstant smtScript (label x)
-    yVar = getConstant smtScript (label y)
+    xVar = getDeclaration smtScript (label x)
+    yVar = getDeclaration smtScript (label y)
   disjointChildren zs = map function zs
   sigSort   = translateType (Prod [PrimSig { .. }])
   empty     = SmtUnary EmptySet (SortExpr sigSort)
@@ -133,10 +134,9 @@ translateAbstract smtScript PrimSig {..} =
     True  -> addAssertion smtScript assertion
      where
       function x y = SmtBinary Union x y
-      sigVar    = getConstant smtScript primLabel
+      sigVar    = getDeclaration smtScript primLabel
       union     = foldl function empty variables
-      variables = map (SmtVar . getConstant smtScript . label) children
-      sigSort   = translateType (Prod [PrimSig { .. }])
+      variables = map (SmtVar . getDeclaration smtScript . label) children
       empty     = SmtUnary EmptySet (SortExpr (sort sigVar))
       equal     = SmtBinary Eq (SmtVar sigVar) union
       assertion = Assertion ("abstract " ++ primLabel) equal
@@ -156,7 +156,7 @@ translateFields smtScript sig = smtScript4
   smtScript4 = translateDisjoint2Decls smtScript3 individuals
 
 declareField :: Sig -> SmtScript -> Decl -> SmtScript
-declareField sig smtScript Decl {..} = addConstant smtScript constant
+declareField sig smtScript Decl {..} = addDeclaration smtScript constant
  where
   constant = SmtVariable { name       = concat (declNames Decl { .. })
                          , sort       = smtSort
@@ -179,7 +179,7 @@ translateField :: Sig -> SmtScript -> Decl -> SmtScript
 
 translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
  where
-  fieldVar      = getConstant smtScript (concat (declNames Decl { .. }))
+  fieldVar      = getDeclaration smtScript (concat (declNames Decl { .. }))
   this          = AlloyVariable "this" (Prod [sig])
   thisExpr      = AlloyVar this
   thisJoinField = AlloyBinary JOIN thisExpr (Field Decl { .. })
@@ -242,7 +242,7 @@ translateSignatureFact :: SmtScript -> Sig -> SmtScript
 translateSignatureFact smtScript sig = case (sigfacts sig) of
   [] -> smtScript
   _  -> smtScript1   where
-    sigVar       = getConstant smtScript (label sig)
+    sigVar       = getDeclaration smtScript (label sig)
     smtScript1   = addAssertion smtScript assertion
     assertion    = Assertion ((show sigVar) ++ " sig facts") smtExpr
     (_, smtExpr) = translate (smtScript, emptyEnv, allExpr)
@@ -293,9 +293,9 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
 
 translate :: (SmtScript, Env, AlloyExpr) -> (Env, SmtExpr)
 translate (smtScript, env, Signature x) =
-  (env, SmtVar (getConstant smtScript (label x)))
+  (env, SmtVar (getDeclaration smtScript (label x)))
 translate (smtScript, env, Field Decl {..}) =
-  (env, SmtVar (getConstant smtScript (getFieldName Decl { .. })))
+  (env, SmtVar (getDeclaration smtScript (getFieldName Decl { .. })))
 translate (smtScript, env, (AlloyConstant c sig)) = case sig of
   SigInt -> translateIntConstant smtScript env (read c)
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
@@ -476,22 +476,22 @@ translate (smtScript, env, (AlloyQt op decls body)) = (env2, smtQt)
   constraints      = SmtMultiArity And (disjoint : rangeConstraints)
   (env2, bodyExpr) = translate (smtScript, env1, body)
   smtQt            = translateQt op
-   where
-    translateQt All = case auxiliaryFormula env2 of
-      Nothing ->
-        SmtQt ForAll variables (SmtBinary Implies constraints bodyExpr)
-      Just (SmtQt Exists existsVars existsBody) -> SmtQt
-        ForAll
-        variables
-        (SmtBinary Implies constraints newBody)
-       where
-        newBody =
-          (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
+  translateQt All  = case auxiliaryFormula env2 of
+    Nothing -> SmtQt ForAll variables (SmtBinary Implies constraints bodyExpr)
+    Just (SmtQt Exists existsVars existsBody) -> SmtQt
+      ForAll
+      variables
+      (SmtBinary Implies constraints newBody)
+     where
+      newBody =
+        (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
+    Just x -> error ("Do not know how to translate auxiliary formula: " ++ (show x))
   translateQt No            = SmtUnary Not (translateQt All)
   translateQt Lone          = undefined
   translateQt Some          = undefined
   translateQt Sum           = undefined
   translateQt Comprehension = undefined
+  translateQt _ = error ((show op) ++ " is not an alloy quantifier")
 
 
 -- let expression
@@ -524,35 +524,35 @@ translateType AlloyBool = SmtBool
 
 -- SmtExpr for multiplicity and range constraints
 -- ToDo: optimize this such that this is called once for Decl like (x, y : expr)    
-translateDecl :: SmtScript -> Env -> Decl -> (SmtVariable, [SmtExpr])
+translateDecl :: SmtScript -> Env -> Decl -> (SmtDeclaration, [SmtExpr])
 translateDecl smtScript env decl = (var, exprs)
  where
   varName      = concat (declNames decl)
   (var, exprs) = translateDeclExpr (smtScript, env, expr decl)
-  translateDeclExpr (smtScript, env, AlloyUnary ONEOF x) = (variable, [member])
+  translateDeclExpr (script, env, AlloyUnary ONEOF x) = (variable, [member])
    where
-    (_, smtExpr) = translate (smtScript, env, x)
+    (_, smtExpr) = translate (script, env, x)
     varSort      = case (smtType smtExpr) of
-      Set (Tuple (x : [])) -> Tuple (x : []) -- arity 1
+      Set (Tuple (y : [])) -> Tuple (y : []) -- arity 1
       s -> error ("Expected a relation with arity 1. Found " ++ (show s))
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
     member = SmtBinary Member (SmtVar variable) smtExpr
 
-  translateDeclExpr (smtScript, env, AlloyUnary SOMEOF x) =
+  translateDeclExpr (script, env, AlloyUnary SOMEOF x) =
     (variable, [subset, notEmpty])
    where
-    (_, smtExpr) = translate (smtScript, env, x)
+    (_, smtExpr) = translate (script, env, x)
     varSort      = smtType smtExpr
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
     subset   = SmtBinary Subset (SmtVar variable) smtExpr
     emptySet = SmtUnary EmptySet (SortExpr varSort)
     notEmpty = SmtUnary Not (SmtBinary Eq (SmtVar variable) emptySet)
-  translateDeclExpr (smtScript, env, AlloyUnary LONEOF x) =
+  translateDeclExpr (script, env, AlloyUnary LONEOF x) =
     (variable, [subset, loneExpr])
    where
-    (_, smtExpr) = translate (smtScript, env, x)
+    (_, smtExpr) = translate (script, env, x)
     varSort      = smtType smtExpr
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
@@ -569,15 +569,15 @@ translateDecl smtScript env decl = (var, exprs)
     existsExpr  = SmtQt Exists [element] subset
     loneExpr    = SmtMultiArity Or [empty, existsExpr]
 
-  translateDeclExpr (smtScript, env, AlloyUnary SETOF x) = (variable, [subset])
+  translateDeclExpr (script, env, AlloyUnary SETOF x) = (variable, [subset])
    where
-    (_, smtExpr) = translate (smtScript, env, x)
+    (_, smtExpr) = translate (script, env, x)
     varSort      = smtType smtExpr
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
     subset = SmtBinary Subset (SmtVar variable) smtExpr
 
-  translateDeclExpr (smtScript, env, AlloyBinary _ _ _) = undefined
+  translateDeclExpr (_, _, AlloyBinary _ _ _) = undefined
   translateDeclExpr (_, _, x) = error ("Invalid decl expr: " ++ (show x))
 
 translateComparison :: (SmtScript, Env, AlloyExpr) -> SmtExpr

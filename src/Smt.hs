@@ -18,34 +18,40 @@ data SmtScript
     = SmtScript
     {
         sorts :: [Sort],
-        constants :: [SmtVariable],
+        declarations :: [SmtDeclaration],
         assertions :: [Assertion]
     } deriving (Show, Eq)
 
 emptySmtScript :: SmtScript
-emptySmtScript = SmtScript { sorts      = [uninterpretedAtom, uninterpretedUInt]
-                           , constants  = []
+emptySmtScript = SmtScript { sorts = [uninterpretedAtom, uninterpretedUInt]
+                           , declarations = []
                            , assertions = []
                            }
 
 addSort :: Sort -> SmtScript -> SmtScript
 addSort s smtScript = smtScript { sorts = s : sorts smtScript }
 
-getConstant :: SmtScript -> String -> SmtVariable
-getConstant smtScript x = getByName (constants smtScript) x
+getDeclaration :: SmtScript -> String -> SmtDeclaration
+getDeclaration smtScript x = getByName (declarations smtScript) x
   where
     getByName (v : vs) n = if name v == n then v else getByName vs n
     getByName _        n = error (n ++ " not found")
 
-containsConstant :: SmtScript -> String -> Bool
-containsConstant SmtScript {..} x =
-    any (\SmtVariable {..} -> x == name) constants
+containsDeclaration :: SmtScript -> String -> Bool
+containsDeclaration SmtScript {..} x =
+    any (\declaration -> matchName declaration x) declarations
 
-addConstant :: SmtScript -> SmtVariable -> SmtScript
-addConstant smtScript f = smtScript { constants = f : constants smtScript }
+matchName :: SmtDeclaration -> String -> Bool
+matchName SmtVariable {..} x = x == name
+matchName (SortDeclaration (UninterpretedSort x _)) y = x == y
+matchName _                _ = error ("Unsupported variable name")
 
-addConstants :: SmtScript -> [SmtVariable] -> SmtScript
-addConstants = foldl addConstant
+addDeclaration :: SmtScript -> SmtDeclaration -> SmtScript
+addDeclaration smtScript f =
+    smtScript { declarations = f : declarations smtScript }
+
+addDeclarations :: SmtScript -> [SmtDeclaration] -> SmtScript
+addDeclarations = foldl addDeclaration
 
 addAssertion :: SmtScript -> Assertion -> SmtScript
 addAssertion smtScript a = smtScript { assertions = a : assertions smtScript }
@@ -54,26 +60,29 @@ addAssertion smtScript a = smtScript { assertions = a : assertions smtScript }
 addAssertions :: SmtScript -> [Assertion] -> SmtScript
 addAssertions = foldl addAssertion
 
-data SmtVariable
+data SmtDeclaration
     = SmtVariable
     {
         name :: String,
         sort :: Sort,
         isOriginal :: Bool -- is it original smtScript name or auxiliary name?
-    } deriving (Eq)
+    }
+    | SortDeclaration Sort
+    deriving (Eq)
 
-instance Show SmtVariable where
-    show = name
+instance Show SmtDeclaration where
+    show SmtVariable { name = x } = x
+    show (SortDeclaration x)      = show x
 
 data SmtExpr
     = SmtIntConstant Int
-    | SmtVar SmtVariable
+    | SmtVar SmtDeclaration
     | SmtBoolConstant Bool
     | SmtUnary SmtUnaryOp SmtExpr
     | SmtBinary SmtBinaryOp SmtExpr SmtExpr
     | SmtIte SmtExpr SmtExpr SmtExpr
-    | SmtLet [(SmtVariable, SmtExpr)] SmtExpr
-    | SmtQt SmtQuantifier [SmtVariable] SmtExpr
+    | SmtLet [(SmtDeclaration, SmtExpr)] SmtExpr
+    | SmtQt SmtQuantifier [SmtDeclaration] SmtExpr
     | SortExpr Sort
     | SmtMultiArity SmtMultiArityOp [SmtExpr]
     deriving (Show, Eq)
@@ -86,31 +95,33 @@ smtFalse = SmtBoolConstant False
 
 data Sort = SmtInt | SmtBool | Tuple [Sort] | Set Sort | UninterpretedSort String Int deriving (Show, Eq)
 
+uninterpretedAtom :: Sort
 uninterpretedAtom = UninterpretedSort "Atom" 0
+uninterpretedUInt :: Sort
 uninterpretedUInt = UninterpretedSort "UInt" 0
 
 data Assertion = Assertion String SmtExpr deriving (Show, Eq)
 
-none :: SmtVariable
+none :: SmtDeclaration
 none = SmtVariable { name       = "none"
                    , sort       = Set (Tuple [uninterpretedAtom])
                    , isOriginal = False
                    }
 
-univAtom :: SmtVariable
+univAtom :: SmtDeclaration
 univAtom = SmtVariable { name       = "univAtom"
                        , sort       = Set (Tuple [uninterpretedAtom])
                        , isOriginal = False
                        }
 
-idenAtom :: SmtVariable
+idenAtom :: SmtDeclaration
 idenAtom = SmtVariable
     { name       = "idenAtom"
     , sort       = Set (Tuple [uninterpretedAtom, uninterpretedAtom])
     , isOriginal = False
     }
 
-univInt :: SmtVariable
+univInt :: SmtDeclaration
 univInt = SmtVariable { name       = "univInt"
                       , sort       = Set (Tuple [uninterpretedUInt])
                       , isOriginal = False
@@ -120,33 +131,35 @@ smtType :: SmtExpr -> Sort
 smtType (SmtIntConstant  _               ) = SmtInt
 smtType (SmtBoolConstant _               ) = SmtBool
 smtType (SmtVar          SmtVariable {..}) = sort
+smtType (SmtVar (SortDeclaration x)) =
+    error ("Sort declaration " ++ (show x) ++ " is not an expression")
 -- unary
-smtType (SmtUnary Not        _           ) = SmtBool
-smtType (SmtUnary Complement x           ) = smtType x
-smtType (SmtUnary Transpose  _           ) = undefined
-smtType (SmtUnary TClosure   x           ) = smtType x
-smtType (SmtUnary Singleton  x           ) = Set (smtType x)
-smtType (SmtUnary UnivSet    x           ) = smtType x
-smtType (SmtUnary EmptySet   x           ) = smtType x
+smtType (SmtUnary Not        _     ) = SmtBool
+smtType (SmtUnary Complement x     ) = smtType x
+smtType (SmtUnary Transpose  _     ) = undefined
+smtType (SmtUnary TClosure   x     ) = smtType x
+smtType (SmtUnary Singleton  x     ) = Set (smtType x)
+smtType (SmtUnary UnivSet    x     ) = smtType x
+smtType (SmtUnary EmptySet   x     ) = smtType x
 -- binary
-smtType (SmtBinary Implies      _ _      ) = SmtBool
-smtType (SmtBinary Plus         _ _      ) = SmtInt
-smtType (SmtBinary Minus        _ _      ) = SmtInt
-smtType (SmtBinary Multiply     _ _      ) = SmtInt
-smtType (SmtBinary Divide       _ _      ) = SmtInt
-smtType (SmtBinary Mod          _ _      ) = SmtInt
-smtType (SmtBinary Eq           _ _      ) = SmtBool
-smtType (SmtBinary Gte          _ _      ) = SmtBool
-smtType (SmtBinary Lte          _ _      ) = SmtBool
-smtType (SmtBinary Gt           _ _      ) = SmtBool
-smtType (SmtBinary Lt           _ _      ) = SmtBool
-smtType (SmtBinary Union        x _      ) = smtType x
-smtType (SmtBinary Intersection x _      ) = smtType x
-smtType (SmtBinary SetMinus     x _      ) = smtType x
-smtType (SmtBinary Member       _ _      ) = SmtBool
-smtType (SmtBinary Subset       _ _      ) = SmtBool
-smtType (SmtBinary Join         x y      ) = smtJoinType (smtType x) (smtType y)
-smtType (SmtBinary Product      x y      ) = case (xType, yType) of
+smtType (SmtBinary Implies      _ _) = SmtBool
+smtType (SmtBinary Plus         _ _) = SmtInt
+smtType (SmtBinary Minus        _ _) = SmtInt
+smtType (SmtBinary Multiply     _ _) = SmtInt
+smtType (SmtBinary Divide       _ _) = SmtInt
+smtType (SmtBinary Mod          _ _) = SmtInt
+smtType (SmtBinary Eq           _ _) = SmtBool
+smtType (SmtBinary Gte          _ _) = SmtBool
+smtType (SmtBinary Lte          _ _) = SmtBool
+smtType (SmtBinary Gt           _ _) = SmtBool
+smtType (SmtBinary Lt           _ _) = SmtBool
+smtType (SmtBinary Union        x _) = smtType x
+smtType (SmtBinary Intersection x _) = smtType x
+smtType (SmtBinary SetMinus     x _) = smtType x
+smtType (SmtBinary Member       _ _) = SmtBool
+smtType (SmtBinary Subset       _ _) = SmtBool
+smtType (SmtBinary Join         x y) = smtJoinType (smtType x) (smtType y)
+smtType (SmtBinary Product      x y) = case (xType, yType) of
     (Set (Tuple xs), Set (Tuple ys)) -> Set (Tuple (xs ++ ys))
     _ -> error ("Invalid product of " ++ (show xType) ++ " " ++ (show yType))
   where
