@@ -32,10 +32,11 @@ fact1 =
 
 fact2 :: Fact
 fact2 = Fact
-  "3 < #A"
-  (AlloyBinary Less
-               (AlloyConstant "3" SigInt)
+  "#A > 3"
+  (AlloyBinary Greater
                (AlloyUnary CARDINALITY (Signature a))
+               (AlloyConstant "3" SigInt)
+               
   )
 
 f1 :: AlloyVariable

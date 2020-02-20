@@ -319,14 +319,15 @@ translate (smtScript, env, AlloyUnary SOME x) = (env, someExpr)
   equal           = SmtBinary Eq empty setExpr
   notEmpty        = SmtUnary Not equal
 
-translate (_        , _  , (AlloyUnary LONE _)       ) = undefined
-translate (_        , _  , (AlloyUnary ONE _)        ) = undefined
-translate (_        , _  , (AlloyUnary TRANSPOSE _)  ) = undefined
-translate (_        , _  , (AlloyUnary RCLOSURE _)   ) = undefined
-translate (_        , _  , (AlloyUnary CLOSURE _)    ) = undefined
-translate (_        , _  , (AlloyUnary CARDINALITY _)) = undefined
-translate (_        , _  , AlloyUnary CAST2INT _     ) = undefined
-translate (_        , _  , AlloyUnary CAST2SIGINT _  ) = undefined
+translate (_, _, (AlloyUnary LONE _)     ) = undefined
+translate (_, _, (AlloyUnary ONE _)      ) = undefined
+translate (_, _, (AlloyUnary TRANSPOSE _)) = undefined
+translate (_, _, (AlloyUnary RCLOSURE _) ) = undefined
+translate (_, _, (AlloyUnary CLOSURE _)  ) = undefined
+translate (_, _, (AlloyUnary CARDINALITY _)) =
+  error ("Cardinality not supported here.")
+translate (_, _, AlloyUnary CAST2INT _) = undefined
+translate (_, _, AlloyUnary CAST2SIGINT _) = undefined
 translate (smtScript, env, (AlloyUnary NOOP x)) = translate (smtScript, env, x)
 -- binary expressions
 translate (smtScript, env, (AlloyBinary ARROW x y)) =
@@ -377,21 +378,6 @@ translate (_, _, (AlloyBinary IMINUS _ _)) = undefined
 translate (_, _, (AlloyBinary MUL _ _)   ) = undefined
 translate (_, _, (AlloyBinary DIV _ _)   ) = undefined
 translate (_, _, (AlloyBinary REM _ _)   ) = undefined
-translate (smtScript, env, (AlloyBinary EQUALS x y)) =
-  ( env
-  , SmtBinary Eq
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
-  )
-translate (smtScript, env, (AlloyBinary NOT_EQUALS x y)) =
-  ( env
-  , SmtUnary
-    Not
-    (SmtBinary Eq
-               (second (translate (smtScript, env, x)))
-               (second (translate (smtScript, env, y)))
-    )
-  )
 translate (smtScript, env, (AlloyBinary IMPLIES x y)) =
   ( env
   , SmtBinary Implies
@@ -402,30 +388,27 @@ translate (smtScript, env, (AlloyBinary IMPLIES x y)) =
 translate (smtScript, env, (AlloyBinary Less x y)) =
   (env, translateComparison (smtScript, env, (AlloyBinary Less x y)))
 translate (smtScript, env, (AlloyBinary LTE x y)) =
-  ( env
-  , SmtBinary Lte
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
-  )
+  (env, translateComparison (smtScript, env, (AlloyBinary LTE x y)))
 translate (smtScript, env, (AlloyBinary Greater x y)) =
-  ( env
-  , SmtBinary Gt
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
-  )
+  (env, translateComparison (smtScript, env, (AlloyBinary Greater x y)))
 translate (smtScript, env, (AlloyBinary GTE x y)) =
-  ( env
-  , SmtBinary Gte
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
-  )
-translate (_        , _  , (AlloyBinary NOT_LT _ _) ) = undefined
-translate (_        , _  , (AlloyBinary NOT_LTE _ _)) = undefined
-translate (_        , _  , (AlloyBinary NOT_GT _ _) ) = undefined
-translate (_        , _  , (AlloyBinary NOT_GTE _ _)) = undefined
-translate (_        , _  , (AlloyBinary SHL _ _)    ) = undefined
-translate (_        , _  , (AlloyBinary SHA _ _)    ) = undefined
-translate (_        , _  , (AlloyBinary SHR _ _)    ) = undefined
+  (env, translateComparison (smtScript, env, (AlloyBinary GTE x y)))
+translate (smtScript, env, (AlloyBinary NOT_LT x y)) =
+  (env, translateComparison (smtScript, env, (AlloyBinary NOT_LT x y)))
+translate (smtScript, env, (AlloyBinary NOT_LTE x y)) =
+  (env, translateComparison (smtScript, env, (AlloyBinary NOT_LTE x y)))
+translate (smtScript, env, (AlloyBinary NOT_GT x y)) =
+  (env, translateComparison (smtScript, env, (AlloyBinary NOT_GT x y)))
+translate (smtScript, env, (AlloyBinary NOT_GTE x y)) =
+  (env, translateComparison (smtScript, env, (AlloyBinary NOT_GTE x y)))
+translate (smtScript, env, (AlloyBinary EQUALS x y)) =
+  (env, translateComparison (smtScript, env, (AlloyBinary EQUALS x y)))
+translate (smtScript, env, (AlloyBinary NOT_EQUALS x y)) =
+  (env, translateComparison (smtScript, env, (AlloyBinary NOT_EQUALS x y)))
+
+translate (_        , _  , (AlloyBinary SHL _ _)) = undefined
+translate (_        , _  , (AlloyBinary SHA _ _)) = undefined
+translate (_        , _  , (AlloyBinary SHR _ _)) = undefined
 
 -- Translation of 'x in y' where A = translate x, B = translate Y
 -- left sort | right sort | Translation
@@ -433,7 +416,7 @@ translate (_        , _  , (AlloyBinary SHR _ _)    ) = undefined
 -- tuple     | tuple      | (= A B)
 -- tuple     | set        | (member tuple set)
 -- set       | set        | (subset A B)
-translate (smtScript, env, (AlloyBinary IN x y)     ) = (env, auxiliaryB)
+translate (smtScript, env, (AlloyBinary IN x y) ) = (env, auxiliaryB)
  where
   smtIn     = memberOrSubset a b (smtType a) (smtType b)
   (envA, a) = translate (smtScript, env, x)
@@ -664,14 +647,22 @@ translateComparison (smtScript, env, (AlloyBinary op (AlloyConstant c SigInt) (A
       )
     _ -> error "Invalid comparision operator"
 
+-- general case for = , !=
+translateComparison (smtScript, env, (AlloyBinary EQUALS x y)) = smtExpr
+ where
+  (env1, xExpr) = (translate (smtScript, env, x))
+  (env2, yExpr) = (translate (smtScript, env1, y))
+  equal         = SmtBinary Eq xExpr yExpr
+  smtExpr       = translateAuxiliaryFormula env2 equal
+translateComparison (smtScript, env, (AlloyBinary NOT_EQUALS x y)) = smtExpr
+ where
+  smtExpr = SmtUnary Not equal
+  equal   = translateComparison (smtScript, env, (AlloyBinary EQUALS x y))
 
+
+-- arithmetic
 translateComparison (smtScript, env, (AlloyBinary op x y)) =
-  translateAuxiliaryFormula
-    env
-    (SmtBinary Gte
-               (second (translate (smtScript, env, x)))
-               (second (translate (smtScript, env, y)))
-    )
+  translateArithmetic (smtScript, env, (AlloyBinary op x y))
 
 
 translateCardinalityComparison
@@ -684,27 +675,28 @@ translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
      where
       vars           = generateVars (n - 1)
       cardinalitySet = generateSet vars
-  LTE     -> case n of
-    n | n <= -1    -> SmtBoolConstant False
+  LTE -> case n of
+    n | n <= -1   -> SmtBoolConstant False
     n | n == 0    -> isEmpty
     n | otherwise -> SmtQt Exists vars (SmtBinary Subset setExpr cardinalitySet)
      where
       vars           = generateVars n
       cardinalitySet = generateSet vars
   Greater -> case n of
-    n | n <= -1    -> SmtBoolConstant True    
+    n | n <= -1   -> SmtBoolConstant True
     n | otherwise -> SmtQt Exists vars (SmtBinary Subset cardinalitySet setExpr)
      where
       vars           = generateVars (n + 1)
       cardinalitySet = generateSet vars
-  GTE     -> case n of
-    n | n <= 0    -> SmtBoolConstant True    
+  GTE -> case n of
+    n | n <= 0    -> SmtBoolConstant True
     n | otherwise -> SmtQt Exists vars (SmtBinary Subset cardinalitySet setExpr)
      where
       vars           = generateVars n
       cardinalitySet = generateSet vars
-  NOT_LT  -> translateCardinalityComparison (Env aux vars index) GTE setExpr n
-  NOT_LTE -> translateCardinalityComparison (Env aux vars index) Greater setExpr n
+  NOT_LT -> translateCardinalityComparison (Env aux vars index) GTE setExpr n
+  NOT_LTE ->
+    translateCardinalityComparison (Env aux vars index) Greater setExpr n
   NOT_GT  -> translateCardinalityComparison (Env aux vars index) LTE setExpr n
   NOT_GTE -> translateCardinalityComparison (Env aux vars index) Less setExpr n
   EQUALS  -> case n of
@@ -732,3 +724,7 @@ translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
   generateSet (x : []) = SmtUnary Singleton (SmtVar x)
   generateSet (x : xs) =
     SmtBinary Union (SmtUnary Singleton (SmtVar x)) (generateSet xs)
+
+translateArithmetic :: (SmtScript, Env, AlloyExpr) -> SmtExpr
+translateArithmetic (smtScript, env, (AlloyBinary op x y)) =
+  error (show (AlloyBinary op x y))
