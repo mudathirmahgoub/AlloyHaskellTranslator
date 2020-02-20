@@ -4,15 +4,15 @@ module Env where
 
 import           Smt
 
-data Env = Env
+data Env = RootEnv | Env
   {
     sorts :: [Sort],
     declarations :: [SmtDeclaration],
     assertions :: [Assertion],
     auxiliaryFormula::Maybe SmtExpr,
     variablesMap :: [(String, SmtDeclaration)],
-    lastIndex :: Int
-  }
+    parent :: Env
+  } deriving (Show, Eq)
 
 addSort :: Sort -> Env -> Env
 addSort s env = env { sorts = s : sorts env }
@@ -78,5 +78,5 @@ emptyEnv = Env { sorts            = [uninterpretedAtom, uninterpretedUInt]
                , assertions       = []
                , auxiliaryFormula = Nothing
                , variablesMap     = []
-               , lastIndex        = 0
+               , parent           = RootEnv
                }
