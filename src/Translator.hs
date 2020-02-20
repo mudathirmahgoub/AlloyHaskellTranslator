@@ -7,67 +7,66 @@ import           Smt
 import           Env
 
 translateModel :: AlloyModel -> Env
-translateModel model = smtScript6
+translateModel model = env6
  where
-  sigs       = signatures model
-  smtScript1 = declareSignatures emptyEnv sigs
-  smtScript2 = translateSignatures smtScript1 sigs
-  smtScript3 = translateSignatureFacts smtScript2 sigs
-  smtScript4 = translateFacts smtScript3 (facts model)
+  sigs = signatures model
+  env1 = declareSignatures emptyEnv sigs
+  env2 = translateSignatures env1 sigs
+  env3 = translateSignatureFacts env2 sigs
+  env4 = translateFacts env3 (facts model)
   -- axioms for none, univAtom, univInt, intValue
-  smtScript5 = addSpecialAssertions smtScript4
-  smtScript6 = translateCommands smtScript5 (commands model)
+  env5 = addSpecialAssertions env4
+  env6 = translateCommands env5 (commands model)
 
 translateSignatures :: Env -> [Sig] -> Env
-translateSignatures smtScript [] = smtScript
-translateSignatures smtScript xs =
-  translateHierarchy smtScript (filter isTopLevel xs)
+translateSignatures env [] = env
+translateSignatures env xs = translateHierarchy env (filter isTopLevel xs)
 
 declareSignatures :: Env -> [Sig] -> Env
-declareSignatures smtScript xs = foldl declareSignature smtScript xs
+declareSignatures env xs = foldl declareSignature env xs
 
 declareSignature :: Env -> Sig -> Env
-declareSignature smtScript Univ   = addDeclaration smtScript univAtom
-declareSignature smtScript SigInt = addDeclaration smtScript univInt
-declareSignature smtScript None   = addDeclaration smtScript none
+declareSignature env Univ   = addDeclaration env univAtom
+declareSignature env SigInt = addDeclaration env univInt
+declareSignature env None   = addDeclaration env none
 declareSignature _ SigString =
   error ("Strings are not supported yet in alloy.")
-declareSignature smtScript sig = addDeclaration
-  smtScript
+declareSignature env sig = addDeclaration
+  env
   SmtVariable { name = label sig, sort = s, isOriginal = True }
   where s = translateType (Prod [sig])
 
 translateHierarchy :: Env -> [Sig] -> Env
-translateHierarchy smtScript xs = foldl translateSignature smtScript xs
+translateHierarchy env xs = foldl translateSignature env xs
 
 translateSignature :: Env -> Sig -> Env
-translateSignature smtScript Univ   = smtScript
-translateSignature smtScript SigInt = smtScript
-translateSignature smtScript None   = smtScript
+translateSignature env Univ   = env
+translateSignature env SigInt = env
+translateSignature env None   = env
 translateSignature _ SigString =
   error ("Strings are not supported yet in alloy.")
-translateSignature smtScript PrimSig {..} = smtScript5
+translateSignature env PrimSig {..} = env5
  where
-  smtScript0 = foldl translateSignature smtScript children
-  smtScript1 = translateSigMultiplicity smtScript0 PrimSig { .. }
-  smtScript2 = translateParent smtScript1 PrimSig { .. }
-  smtScript3 = translateDisjointChildren smtScript2 PrimSig { .. }
-  smtScript4 = translateAbstract smtScript3 PrimSig { .. }
-  smtScript5 = translateFields smtScript4 PrimSig { .. }
+  env0 = foldl translateSignature env children
+  env1 = translateSigMultiplicity env0 PrimSig { .. }
+  env2 = translateParent env1 PrimSig { .. }
+  env3 = translateDisjointChildren env2 PrimSig { .. }
+  env4 = translateAbstract env3 PrimSig { .. }
+  env5 = translateFields env4 PrimSig { .. }
 
-translateSignature smtScript SubsetSig {..} = smtScript3
+translateSignature env SubsetSig {..} = env3
  where
-  smtScript1 = translateSigMultiplicity smtScript SubsetSig { .. }
-  smtScript2 = translateParent smtScript1 SubsetSig { .. }
-  smtScript3 = translateFields smtScript2 SubsetSig { .. }
+  env1 = translateSigMultiplicity env SubsetSig { .. }
+  env2 = translateParent env1 SubsetSig { .. }
+  env3 = translateFields env2 SubsetSig { .. }
 
 -- require sig is already defined in SMTScript p
 translateSigMultiplicity :: Env -> Sig -> Env
 -- sig a
 -- use different from empty set
-translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
+translateSigMultiplicity env sig = addAssertion env assertion
  where
-  c = getDeclaration smtScript (label sig)
+  c = getDeclaration env (label sig)
   s = case translateType (Prod [sig]) of
     Set (Tuple ((UninterpretedSort u arity) : [])) ->
       (UninterpretedSort u arity)
@@ -89,17 +88,17 @@ translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
 
 -- refactor this with subset 
 translateParent :: Env -> Sig -> Env
-translateParent smtScript PrimSig {..} = addAssertion smtScript assertion
+translateParent env PrimSig {..} = addAssertion env assertion
  where
-  childVar  = getDeclaration smtScript primLabel
-  parentVar = getDeclaration smtScript (label parent)
+  childVar  = getDeclaration env primLabel
+  parentVar = getDeclaration env (label parent)
   subset    = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   assertion = Assertion ("parent " ++ primLabel) subset
 
-translateParent smtScript SubsetSig {..} = addAssertion smtScript assertion
+translateParent env SubsetSig {..} = addAssertion env assertion
  where
-  childVar   = getDeclaration smtScript subsetLabel
-  parentVars = map (getDeclaration smtScript . label) parents
+  childVar   = getDeclaration env subsetLabel
+  parentVars = map (getDeclaration env . label) parents
   function parentVar = SmtBinary Subset (SmtVar childVar) (SmtVar parentVar)
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
@@ -108,16 +107,15 @@ translateParent _ _ = undefined
 
 
 translateDisjointChildren :: Env -> Sig -> Env
-translateDisjointChildren smtScript PrimSig {..} = addAssertion smtScript
-                                                                assertion
+translateDisjointChildren env PrimSig {..} = addAssertion env assertion
  where
   function (x, y) = SmtBinary
     Eq
     empty
     (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
-    xVar = getDeclaration smtScript (label x)
-    yVar = getDeclaration smtScript (label y)
+    xVar = getDeclaration env (label x)
+    yVar = getDeclaration env (label y)
   disjointChildren zs = map function zs
   sigSort   = translateType (Prod [PrimSig { .. }])
   empty     = SmtUnary EmptySet (SortExpr sigSort)
@@ -128,35 +126,33 @@ translateDisjointChildren _ sig =
   error ((label sig) ++ " is not a prime signature")
 
 translateAbstract :: Env -> Sig -> Env
-translateAbstract smtScript PrimSig {..} =
-  case isAbstract && not (null children) of
-    False -> smtScript
-    True  -> addAssertion smtScript assertion
-     where
-      function x y = SmtBinary Union x y
-      sigVar    = getDeclaration smtScript primLabel
-      union     = foldl function empty variables
-      variables = map (SmtVar . getDeclaration smtScript . label) children
-      empty     = SmtUnary EmptySet (SortExpr (sort sigVar))
-      equal     = SmtBinary Eq (SmtVar sigVar) union
-      assertion = Assertion ("abstract " ++ primLabel) equal
+translateAbstract env PrimSig {..} = case isAbstract && not (null children) of
+  False -> env
+  True  -> addAssertion env assertion
+   where
+    function x y = SmtBinary Union x y
+    sigVar    = getDeclaration env primLabel
+    union     = foldl function empty variables
+    variables = map (SmtVar . getDeclaration env . label) children
+    empty     = SmtUnary EmptySet (SortExpr (sort sigVar))
+    equal     = SmtBinary Eq (SmtVar sigVar) union
+    assertion = Assertion ("abstract " ++ primLabel) equal
 translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 
 translateFields :: Env -> Sig -> Env
-translateFields smtScript sig = smtScript4
+translateFields env sig = env4
  where
   groups        = fields sig
   individuals   = splitDecls groups
-  smtScript1    = foldl (declareField sig) smtScript individuals
-  smtScript2    = foldl (translateField sig) smtScript1 individuals
-  disjointExprs = translateDisjointDecls smtScript2 emptyEnv groups
-  smtScript3    = addAssertion
-    smtScript2
-    (Assertion ("disjoint " ++ (show groups)) disjointExprs)
-  smtScript4 = translateDisjoint2Decls smtScript3 individuals
+  env1          = foldl (declareField sig) env individuals
+  env2          = foldl (translateField sig) env1 individuals
+  disjointExprs = translateDisjointDecls env2 groups
+  env3 =
+    addAssertion env2 (Assertion ("disjoint " ++ (show groups)) disjointExprs)
+  env4 = translateDisjoint2Decls env3 individuals
 
 declareField :: Sig -> Env -> Decl -> Env
-declareField sig smtScript Decl {..} = addDeclaration smtScript constant
+declareField sig env Decl {..} = addDeclaration env constant
  where
   constant = SmtVariable { name       = concat (declNames Decl { .. })
                          , sort       = smtSort
@@ -177,9 +173,9 @@ translateField :: Sig -> Env -> Decl -> Env
 -- this constraint, s can be in  B -> (A . r) -> A where B is another top level signature
 
 
-translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
+translateField sig env Decl {..} = env1 -- ToDo: fix this
  where
-  fieldVar      = getDeclaration smtScript (concat (declNames Decl { .. }))
+  fieldVar      = getDeclaration env (concat (declNames Decl { .. }))
   this          = AlloyVariable "this" (Prod [sig])
   thisExpr      = AlloyVar this
   thisJoinField = AlloyBinary JOIN thisExpr (Field Decl { .. })
@@ -193,7 +189,11 @@ translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
                        }
   allExpr         = AlloyQt All [decl] alloyLet
   smtMultiplicity = smtExpr
-    where (_, smtExpr) = translate (smtScript, emptyEnv, allExpr)
+   where
+    (_, smtExpr) = translate
+      ( Env { auxiliaryFormula = Nothing, variablesMap = [], parent = env }
+      , allExpr
+      )
   multiplicityAssertion =
     Assertion ((show fieldVar) ++ " field multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
@@ -201,23 +201,23 @@ translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
   productExpr   = AlloyBinary ARROW (Signature sig) substitution
   subsetExpr    = AlloyBinary IN (Field Decl { .. }) productExpr
   subsetAssertion =
-    translateFormula smtScript ((show fieldVar) ++ " field subset") subsetExpr
-  smtScript1 = addAssertions smtScript [multiplicityAssertion, subsetAssertion]
+    translateFormula env ((show fieldVar) ++ " field subset") subsetExpr
+  env1 = addAssertions env [multiplicityAssertion, subsetAssertion]
 
-translateDisjointDecls :: Env -> Env -> [Decl] -> SmtExpr
-translateDisjointDecls smtScript env decls =
-  SmtMultiArity And (map (translateDisjointDecl smtScript env) decls)
+translateDisjointDecls :: Env -> [Decl] -> SmtExpr
+translateDisjointDecls env decls =
+  SmtMultiArity And (map (translateDisjointDecl env) decls)
 
-translateDisjointDecl :: Env -> Env -> Decl -> SmtExpr
-translateDisjointDecl smtScript env decl = andExpr
+translateDisjointDecl :: Env -> Decl -> SmtExpr
+translateDisjointDecl env decl = andExpr
  where
   function (x, y) = SmtBinary
     Eq
     empty
     (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
    where
-    xVar  = getVariable (smtScript, env) (alloyVarName x)
-    yVar  = getVariable (smtScript, env) (alloyVarName y)
+    xVar  = getVariable env (alloyVarName x)
+    yVar  = getVariable env (alloyVarName y)
     empty = SmtUnary EmptySet (SortExpr (sort xVar))
   pairs =
     [ (u, v)
@@ -229,57 +229,64 @@ translateDisjointDecl smtScript env decl = andExpr
 
 
 translateDisjoint2Decls :: Env -> [Decl] -> Env
-translateDisjoint2Decls smtScript _ = smtScript -- ToDo: fix this
+translateDisjoint2Decls env _ = env -- ToDo: fix this
 
 translateSignatureFacts :: Env -> [Sig] -> Env
-translateSignatureFacts smtScript [] = smtScript
-translateSignatureFacts smtScript xs =
-  foldl translateSignatureFact smtScript xs
+translateSignatureFacts env [] = env
+translateSignatureFacts env xs = foldl translateSignatureFact env xs
 
 -- sig s{...}{expr} is translated into
 -- {all this: s | expr}
 translateSignatureFact :: Env -> Sig -> Env
-translateSignatureFact smtScript sig = case (sigfacts sig) of
-  [] -> smtScript
-  _  -> smtScript1   where
-    sigVar       = getDeclaration smtScript (label sig)
-    smtScript1   = addAssertion smtScript assertion
+translateSignatureFact env sig = case (sigfacts sig) of
+  [] -> env
+  _  -> env1   where
+    sigVar       = getDeclaration env (label sig)
+    env1         = addAssertion env assertion
     assertion    = Assertion ((show sigVar) ++ " sig facts") smtExpr
-    (_, smtExpr) = translate (smtScript, emptyEnv, allExpr)
-    allExpr      = AlloyQt All [decl] andExpr
-    andExpr      = AlloyList ListAND (sigfacts sig)
-    this         = AlloyVariable "this" (Prod [sig])
-    decl         = Decl { names     = [this]
-                        , expr      = AlloyUnary ONEOF (Signature sig)
-                        , disjoint  = False
-                        , disjoint2 = False
-                        }
+    (_, smtExpr) = translate
+      ( Env { auxiliaryFormula = Nothing, variablesMap = [], parent = env }
+      , allExpr
+      )
+    allExpr = AlloyQt All [decl] andExpr
+    andExpr = AlloyList ListAND (sigfacts sig)
+    this    = AlloyVariable "this" (Prod [sig])
+    decl    = Decl { names     = [this]
+                   , expr      = AlloyUnary ONEOF (Signature sig)
+                   , disjoint  = False
+                   , disjoint2 = False
+                   }
 
 translateFacts :: Env -> [Fact] -> Env
-translateFacts smtScript xs = foldl translateFact smtScript xs
+translateFacts env xs = foldl translateFact env xs
 
 translateFact :: Env -> Fact -> Env
-translateFact smtScript (Fact name alloyExpr) = addAssertion smtScript
-                                                             assertion
+translateFact env (Fact name alloyExpr) = addAssertion env assertion
  where
   assertion    = Assertion name smtExpr
-  (_, smtExpr) = translate (smtScript, emptyEnv, alloyExpr)
+  (_, smtExpr) = translate
+    ( Env { auxiliaryFormula = Nothing, variablesMap = [], parent = env }
+    , alloyExpr
+    )
 
 addSpecialAssertions :: Env -> Env
-addSpecialAssertions smtScript = smtScript -- ToDo: change this later
+addSpecialAssertions env = env -- ToDo: change this later
 
 translateCommands :: Env -> [Command] -> Env
-translateCommands smtScript xs = foldl translateCommand smtScript xs
+translateCommands env xs = foldl translateCommand env xs
 
 translateCommand :: Env -> Command -> Env
 translateCommand _ _ = undefined
 
 translateFormula :: Env -> String -> AlloyExpr -> Assertion
-translateFormula smtScript string alloyExpr = assertion
+translateFormula env string alloyExpr = assertion
  where
-  (env, smtExpr) = translate (smtScript, emptyEnv, alloyExpr)
-  formula        = translateAuxiliaryFormula env smtExpr
-  assertion      = Assertion string formula
+  (env1, smtExpr) = translate
+    ( Env { auxiliaryFormula = Nothing, variablesMap = [], parent = env }
+    , alloyExpr
+    )
+  formula   = translateAuxiliaryFormula env1 smtExpr
+  assertion = Assertion string formula
 
 translateAuxiliaryFormula :: Env -> SmtExpr -> SmtExpr
 translateAuxiliaryFormula Env { auxiliaryFormula = Nothing } expr = expr
@@ -291,123 +298,117 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
       SmtQt ForAll variables (SmtBinary Implies body expr)
     _ -> error ("Auxiliary formula " ++ (show aux) ++ " is not supported")
 
-translate :: (Env, Env, AlloyExpr) -> (Env, SmtExpr)
-translate (smtScript, env, Signature x) =
-  (env, SmtVar (getDeclaration smtScript (label x)))
-translate (smtScript, env, Field Decl {..}) =
-  (env, SmtVar (getDeclaration smtScript (getFieldName Decl { .. })))
-translate (smtScript, env, (AlloyConstant c sig)) = case sig of
-  SigInt -> translateIntConstant smtScript env (read c)
+translate :: (Env, AlloyExpr) -> (Env, SmtExpr)
+translate (env, Signature x) = (env, SmtVar (getDeclaration env (label x)))
+translate (env, Field Decl {..}) =
+  (env, SmtVar (getDeclaration env (getFieldName Decl { .. })))
+translate (env, (AlloyConstant c sig)) = case sig of
+  SigInt -> translateIntConstant env (read c)
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
-translate (smtScript, env, AlloyVar x) = (env, SmtVar variable)
-  where variable = getVariable (smtScript, env) (alloyVarName x)
-translate (_, _, (AlloyUnary SOMEOF _)) = undefined
-translate (_, _, (AlloyUnary LONEOF _)) = undefined
-translate (smtScript, env, (AlloyUnary ONEOF x)) =
-  translate (smtScript, env, x)
-translate (_, _, (AlloyUnary SETOF _)    ) = undefined
-translate (_, _, (AlloyUnary EXACTLYOF _)) = undefined
-translate (smtScript, env, (AlloyUnary NOT x)) =
-  (env, SmtUnary Not (second (translate (smtScript, env, x))))
-translate (_        , _  , (AlloyUnary NO _)) = undefined
-translate (smtScript, env, AlloyUnary SOME x) = (env, someExpr)
+translate (env, AlloyVar x) = (env, SmtVar variable)
+  where variable = getVariable env (alloyVarName x)
+translate (_  , (AlloyUnary SOMEOF _)   ) = undefined
+translate (_  , (AlloyUnary LONEOF _)   ) = undefined
+translate (env, (AlloyUnary ONEOF x)    ) = translate (env, x)
+translate (_  , (AlloyUnary SETOF _)    ) = undefined
+translate (_  , (AlloyUnary EXACTLYOF _)) = undefined
+translate (env, (AlloyUnary NOT x)) =
+  (env, SmtUnary Not (second (translate (env, x))))
+translate (_  , (AlloyUnary NO _)) = undefined
+translate (env, AlloyUnary SOME x) = (env, someExpr)
  where
   someExpr        = translateAuxiliaryFormula env1 notEmpty
-  (env1, setExpr) = translate (smtScript, env, x)
+  (env1, setExpr) = translate (env, x)
   empty           = SmtUnary EmptySet (SortExpr (smtType setExpr))
   equal           = SmtBinary Eq empty setExpr
   notEmpty        = SmtUnary Not equal
 
-translate (_, _, (AlloyUnary LONE _)     ) = undefined
-translate (_, _, (AlloyUnary ONE _)      ) = undefined
-translate (_, _, (AlloyUnary TRANSPOSE _)) = undefined
-translate (_, _, (AlloyUnary RCLOSURE _) ) = undefined
-translate (_, _, (AlloyUnary CLOSURE _)  ) = undefined
-translate (_, _, (AlloyUnary CARDINALITY _)) =
+translate (_, (AlloyUnary LONE _)     ) = undefined
+translate (_, (AlloyUnary ONE _)      ) = undefined
+translate (_, (AlloyUnary TRANSPOSE _)) = undefined
+translate (_, (AlloyUnary RCLOSURE _) ) = undefined
+translate (_, (AlloyUnary CLOSURE _)  ) = undefined
+translate (_, (AlloyUnary CARDINALITY _)) =
   error ("Cardinality not supported here.")
-translate (_, _, AlloyUnary CAST2INT _) = undefined
-translate (_, _, AlloyUnary CAST2SIGINT _) = undefined
-translate (smtScript, env, (AlloyUnary NOOP x)) = translate (smtScript, env, x)
+translate (_  , AlloyUnary CAST2INT _   ) = undefined
+translate (_  , AlloyUnary CAST2SIGINT _) = undefined
+translate (env, (AlloyUnary NOOP x)     ) = translate (env, x)
 -- binary expressions
-translate (smtScript, env, (AlloyBinary ARROW x y)) =
-  (env, SmtBinary Product a b)
+translate (env, (AlloyBinary ARROW x y) ) = (env, SmtBinary Product a b)
  where
-  (_, a) = translate (smtScript, env, x)
-  (_, b) = translate (smtScript, env, y)
+  (_, a) = translate (env, x)
+  (_, b) = translate (env, y)
 
-translate (_, _, (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
-translate (_, _, (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
-translate (_, _, (AlloyBinary ANY_ARROW_LONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_ANY _ _)  ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_SOME _ _) ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_ONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary SOME_ARROW_LONE _ _) ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_ANY _ _)   ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_SOME _ _)  ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_ONE _ _)   ) = undefined
-translate (_, _, (AlloyBinary ONE_ARROW_LONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_ANY _ _)  ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_SOME _ _) ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_ONE _ _)  ) = undefined
-translate (_, _, (AlloyBinary LONE_ARROW_LONE _ _) ) = undefined
-translate (_, _, (AlloyBinary ISSEQ_ARROW_LONE _ _)) = undefined
-translate (smtScript, env, (AlloyBinary JOIN x y)) =
-  (env, SmtBinary Join smtX smtY)
+translate (_  , (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
+translate (_  , (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
+translate (_  , (AlloyBinary ANY_ARROW_LONE _ _)  ) = undefined
+translate (_  , (AlloyBinary SOME_ARROW_ANY _ _)  ) = undefined
+translate (_  , (AlloyBinary SOME_ARROW_SOME _ _) ) = undefined
+translate (_  , (AlloyBinary SOME_ARROW_ONE _ _)  ) = undefined
+translate (_  , (AlloyBinary SOME_ARROW_LONE _ _) ) = undefined
+translate (_  , (AlloyBinary ONE_ARROW_ANY _ _)   ) = undefined
+translate (_  , (AlloyBinary ONE_ARROW_SOME _ _)  ) = undefined
+translate (_  , (AlloyBinary ONE_ARROW_ONE _ _)   ) = undefined
+translate (_  , (AlloyBinary ONE_ARROW_LONE _ _)  ) = undefined
+translate (_  , (AlloyBinary LONE_ARROW_ANY _ _)  ) = undefined
+translate (_  , (AlloyBinary LONE_ARROW_SOME _ _) ) = undefined
+translate (_  , (AlloyBinary LONE_ARROW_ONE _ _)  ) = undefined
+translate (_  , (AlloyBinary LONE_ARROW_LONE _ _) ) = undefined
+translate (_  , (AlloyBinary ISSEQ_ARROW_LONE _ _)) = undefined
+translate (env, (AlloyBinary JOIN x y)) = (env, SmtBinary Join smtX smtY)
  where
-  smtX = makeRelation (second (translate (smtScript, env, x)))
-  smtY = makeRelation (second (translate (smtScript, env, y)))
-translate (_, _, (AlloyBinary DOMAIN _ _)) = undefined
-translate (_, _, (AlloyBinary RANGE _ _) ) = undefined
-translate (smtScript, env, (AlloyBinary INTERSECT x y)) =
+  smtX = makeRelation (second (translate (env, x)))
+  smtY = makeRelation (second (translate (env, y)))
+translate (_, (AlloyBinary DOMAIN _ _)) = undefined
+translate (_, (AlloyBinary RANGE _ _) ) = undefined
+translate (env, (AlloyBinary INTERSECT x y)) =
   ( env
   , SmtBinary Intersection
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
+              (second (translate (env, x)))
+              (second (translate (env, y)))
   )
-translate (_, _, (AlloyBinary PLUSPLUS _ _)) = undefined
-translate (smtScript, env, (AlloyBinary PLUS x y)) =
+translate (_, (AlloyBinary PLUSPLUS _ _)) = undefined
+translate (env, (AlloyBinary PLUS x y)) =
   ( env
-  , SmtBinary Union
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
+  , SmtBinary Union (second (translate (env, x))) (second (translate (env, y)))
   )
-translate (_, _, (AlloyBinary IPLUS _ _) ) = undefined
-translate (_, _, (AlloyBinary MINUS _ _) ) = undefined
-translate (_, _, (AlloyBinary IMINUS _ _)) = undefined
-translate (_, _, (AlloyBinary MUL _ _)   ) = undefined
-translate (_, _, (AlloyBinary DIV _ _)   ) = undefined
-translate (_, _, (AlloyBinary REM _ _)   ) = undefined
-translate (smtScript, env, (AlloyBinary IMPLIES x y)) =
+translate (_, (AlloyBinary IPLUS _ _) ) = undefined
+translate (_, (AlloyBinary MINUS _ _) ) = undefined
+translate (_, (AlloyBinary IMINUS _ _)) = undefined
+translate (_, (AlloyBinary MUL _ _)   ) = undefined
+translate (_, (AlloyBinary DIV _ _)   ) = undefined
+translate (_, (AlloyBinary REM _ _)   ) = undefined
+translate (env, (AlloyBinary IMPLIES x y)) =
   ( env
   , SmtBinary Implies
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
+              (second (translate (env, x)))
+              (second (translate (env, y)))
   )
 
-translate (smtScript, env, (AlloyBinary Less x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary Less x y)))
-translate (smtScript, env, (AlloyBinary LTE x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary LTE x y)))
-translate (smtScript, env, (AlloyBinary Greater x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary Greater x y)))
-translate (smtScript, env, (AlloyBinary GTE x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary GTE x y)))
-translate (smtScript, env, (AlloyBinary NOT_LT x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary NOT_LT x y)))
-translate (smtScript, env, (AlloyBinary NOT_LTE x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary NOT_LTE x y)))
-translate (smtScript, env, (AlloyBinary NOT_GT x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary NOT_GT x y)))
-translate (smtScript, env, (AlloyBinary NOT_GTE x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary NOT_GTE x y)))
-translate (smtScript, env, (AlloyBinary EQUALS x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary EQUALS x y)))
-translate (smtScript, env, (AlloyBinary NOT_EQUALS x y)) =
-  (env, translateComparison (smtScript, env, (AlloyBinary NOT_EQUALS x y)))
+translate (env, (AlloyBinary Less x y)) =
+  (env, translateComparison (env, (AlloyBinary Less x y)))
+translate (env, (AlloyBinary LTE x y)) =
+  (env, translateComparison (env, (AlloyBinary LTE x y)))
+translate (env, (AlloyBinary Greater x y)) =
+  (env, translateComparison (env, (AlloyBinary Greater x y)))
+translate (env, (AlloyBinary GTE x y)) =
+  (env, translateComparison (env, (AlloyBinary GTE x y)))
+translate (env, (AlloyBinary NOT_LT x y)) =
+  (env, translateComparison (env, (AlloyBinary NOT_LT x y)))
+translate (env, (AlloyBinary NOT_LTE x y)) =
+  (env, translateComparison (env, (AlloyBinary NOT_LTE x y)))
+translate (env, (AlloyBinary NOT_GT x y)) =
+  (env, translateComparison (env, (AlloyBinary NOT_GT x y)))
+translate (env, (AlloyBinary NOT_GTE x y)) =
+  (env, translateComparison (env, (AlloyBinary NOT_GTE x y)))
+translate (env, (AlloyBinary EQUALS x y)) =
+  (env, translateComparison (env, (AlloyBinary EQUALS x y)))
+translate (env, (AlloyBinary NOT_EQUALS x y)) =
+  (env, translateComparison (env, (AlloyBinary NOT_EQUALS x y)))
 
-translate (_        , _  , (AlloyBinary SHL _ _)) = undefined
-translate (_        , _  , (AlloyBinary SHA _ _)) = undefined
-translate (_        , _  , (AlloyBinary SHR _ _)) = undefined
+translate (_  , (AlloyBinary SHL _ _)) = undefined
+translate (_  , (AlloyBinary SHA _ _)) = undefined
+translate (_  , (AlloyBinary SHR _ _)) = undefined
 
 -- Translation of 'x in y' where A = translate x, B = translate Y
 -- left sort | right sort | Translation
@@ -415,11 +416,11 @@ translate (_        , _  , (AlloyBinary SHR _ _)) = undefined
 -- tuple     | tuple      | (= A B)
 -- tuple     | set        | (member tuple set)
 -- set       | set        | (subset A B)
-translate (smtScript, env, (AlloyBinary IN x y) ) = (env, auxiliaryB)
+translate (env, (AlloyBinary IN x y) ) = (env, auxiliaryB)
  where
   smtIn     = memberOrSubset a b (smtType a) (smtType b)
-  (envA, a) = translate (smtScript, env, x)
-  (envB, b) = translate (smtScript, env, y)
+  (envA, a) = translate (env, x)
+  (envB, b) = translate (env, y)
   memberOrSubset u v (Tuple _) (Tuple _) = SmtBinary Eq u v -- not sure this occurs        
   memberOrSubset u v (Tuple _) (Set   _) = SmtBinary Member u v
   memberOrSubset u v (Set   _) (Set   _) = SmtBinary Subset u v
@@ -432,51 +433,45 @@ translate (smtScript, env, (AlloyBinary IN x y) ) = (env, auxiliaryB)
     Just (SmtQt Exists _ aux) -> replaceExpr b a aux -- ToDo: review this (important)
     _                         -> error ("This should never happen")
 
-translate (smtScript, env, (AlloyBinary NOT_IN x y)) = (env, SmtUnary Not expr)
-  where (_, expr) = translate (smtScript, env, AlloyBinary IN x y)
-translate (smtScript, env, (AlloyBinary AND x y)) =
+translate (env, (AlloyBinary NOT_IN x y)) = (env, SmtUnary Not expr)
+  where (_, expr) = translate (env, AlloyBinary IN x y)
+translate (env, (AlloyBinary AND x y)) =
   ( env
   , SmtMultiArity
     And
-    [ (second (translate (smtScript, env, x)))
-    , (second (translate (smtScript, env, y)))
-    ]
+    [(second (translate (env, x))), (second (translate (env, y)))]
   )
-translate (smtScript, env, (AlloyBinary OR x y)) =
+translate (env, (AlloyBinary OR x y)) =
   ( env
   , SmtMultiArity
     Or
-    [ (second (translate (smtScript, env, x)))
-    , (second (translate (smtScript, env, y)))
-    ]
+    [(second (translate (env, x))), (second (translate (env, y)))]
   )
-translate (smtScript, env, (AlloyBinary IFF x y)) =
+translate (env, (AlloyBinary IFF x y)) =
   ( env
-  , SmtBinary Eq
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
+  , SmtBinary Eq (second (translate (env, x))) (second (translate (env, y)))
   )
 -- if then else expression
-translate (smtScript, env, (AlloyITE c x y)) =
+translate (env, (AlloyITE c x y)) =
   ( env
-  , SmtIte (second (translate (smtScript, env, c)))
-           (second (translate (smtScript, env, x)))
-           (second (translate (smtScript, env, y)))
+  , SmtIte (second (translate (env, c)))
+           (second (translate (env, x)))
+           (second (translate (env, y)))
   )
 -- quantified expression
 -- all x: some A| all y: one x | some y
 -- check with Andy with quantifiers versus nested quantifiers
-translate (smtScript, env, (AlloyQt op decls body)) = (env2, smtQt)
+translate (env, (AlloyQt op decls body)) = (env2, smtQt)
  where
-  variableTuples   = map (translateDecl smtScript env) (splitDecls decls)
+  variableTuples   = map (translateDecl env) (splitDecls decls)
   variables        = map first variableTuples
   rangeConstraints = concat (map second variableTuples)
   env1             = addVariables env variables
-  disjoint         = translateDisjointDecls smtScript env1 decls
+  disjoint         = translateDisjointDecls env1 decls
   constraints      = SmtMultiArity And (disjoint : rangeConstraints)
-  (env2, bodyExpr) = translate (smtScript, env1, body)
+  (env2, bodyExpr) = translate (env1, body)
   smtQt            = translateQt op
-  translateQt All  = case auxiliaryFormula env2 of
+  translateQt All = case auxiliaryFormula env2 of
     Nothing -> SmtQt ForAll variables (SmtBinary Implies constraints bodyExpr)
     Just (SmtQt Exists existsVars existsBody) -> SmtQt
       ForAll
@@ -485,27 +480,28 @@ translate (smtScript, env, (AlloyQt op decls body)) = (env2, smtQt)
      where
       newBody =
         (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
-    Just x -> error ("Do not know how to translate auxiliary formula: " ++ (show x))
+    Just x ->
+      error ("Do not know how to translate auxiliary formula: " ++ (show x))
   translateQt No            = SmtUnary Not (translateQt All)
   translateQt Lone          = undefined
   translateQt Some          = undefined
   translateQt Sum           = undefined
   translateQt Comprehension = undefined
-  translateQt _ = error ((show op) ++ " is not an alloy quantifier")
+  translateQt _             = error ((show op) ++ " is not an alloy quantifier")
 
 
 -- let expression
-translate (smtScript, env, (AlloyLet var alloyExpr body)) = (env3, smtLet)
+translate (env, (AlloyLet var alloyExpr body)) = (env3, smtLet)
  where
   smtVar          = SmtVariable (alloyVarName var) (smtType smtExpr) True
-  (env1, smtExpr) = translate (smtScript, env, alloyExpr)
+  (env1, smtExpr) = translate (env, alloyExpr)
   env2            = addVariable env1 smtVar
-  (env3, smtBody) = translate (smtScript, env2, body)
+  (env3, smtBody) = translate (env2, body)
   smtLet          = SmtLet [(smtVar, smtExpr)] smtBody
 
-translate (smtScript, env, AlloyList op xs) = case op of
+translate (env, AlloyList op xs) = case op of
   ListAND -> (env, SmtMultiArity And exprs)
-    where exprs = map second (map (\x -> translate (smtScript, env, x)) xs)
+    where exprs = map second (map (\x -> translate (env, x)) xs)
   ListOR     -> undefined
   TOTALORDER -> undefined
   DISJOINT   -> undefined
@@ -524,14 +520,14 @@ translateType AlloyBool = SmtBool
 
 -- SmtExpr for multiplicity and range constraints
 -- ToDo: optimize this such that this is called once for Decl like (x, y : expr)    
-translateDecl :: Env -> Env -> Decl -> (SmtDeclaration, [SmtExpr])
-translateDecl smtScript env decl = (var, exprs)
+translateDecl :: Env -> Decl -> (SmtDeclaration, [SmtExpr])
+translateDecl env decl = (var, exprs)
  where
   varName      = concat (declNames decl)
-  (var, exprs) = translateDeclExpr (smtScript, env, expr decl)
-  translateDeclExpr (script, env, AlloyUnary ONEOF x) = (variable, [member])
+  (var, exprs) = translateDeclExpr (env, expr decl)
+  translateDeclExpr (env, AlloyUnary ONEOF x) = (variable, [member])
    where
-    (_, smtExpr) = translate (script, env, x)
+    (_, smtExpr) = translate (env, x)
     varSort      = case (smtType smtExpr) of
       Set (Tuple (y : [])) -> Tuple (y : []) -- arity 1
       s -> error ("Expected a relation with arity 1. Found " ++ (show s))
@@ -539,20 +535,18 @@ translateDecl smtScript env decl = (var, exprs)
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
     member = SmtBinary Member (SmtVar variable) smtExpr
 
-  translateDeclExpr (script, env, AlloyUnary SOMEOF x) =
-    (variable, [subset, notEmpty])
+  translateDeclExpr (env, AlloyUnary SOMEOF x) = (variable, [subset, notEmpty])
    where
-    (_, smtExpr) = translate (script, env, x)
+    (_, smtExpr) = translate (env, x)
     varSort      = smtType smtExpr
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
     subset   = SmtBinary Subset (SmtVar variable) smtExpr
     emptySet = SmtUnary EmptySet (SortExpr varSort)
     notEmpty = SmtUnary Not (SmtBinary Eq (SmtVar variable) emptySet)
-  translateDeclExpr (script, env, AlloyUnary LONEOF x) =
-    (variable, [subset, loneExpr])
+  translateDeclExpr (env, AlloyUnary LONEOF x) = (variable, [subset, loneExpr])
    where
-    (_, smtExpr) = translate (script, env, x)
+    (_, smtExpr) = translate (env, x)
     varSort      = smtType smtExpr
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
@@ -569,79 +563,69 @@ translateDecl smtScript env decl = (var, exprs)
     existsExpr  = SmtQt Exists [element] subset
     loneExpr    = SmtMultiArity Or [empty, existsExpr]
 
-  translateDeclExpr (script, env, AlloyUnary SETOF x) = (variable, [subset])
+  translateDeclExpr (env, AlloyUnary SETOF x) = (variable, [subset])
    where
-    (_, smtExpr) = translate (script, env, x)
+    (_, smtExpr) = translate (env, x)
     varSort      = smtType smtExpr
     variable =
       SmtVariable { name = varName, sort = varSort, isOriginal = True }
     subset = SmtBinary Subset (SmtVar variable) smtExpr
 
-  translateDeclExpr (_, _, AlloyBinary _ _ _) = undefined
-  translateDeclExpr (_, _, x) = error ("Invalid decl expr: " ++ (show x))
+  translateDeclExpr (_, AlloyBinary _ _ _) = undefined
+  translateDeclExpr (_, x) = error ("Invalid decl expr: " ++ (show x))
 
-translateComparison :: (Env, Env, AlloyExpr) -> SmtExpr
+translateComparison :: (Env, AlloyExpr) -> SmtExpr
 
-translateComparison (smtScript, env, (AlloyBinary op (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)))
+translateComparison (env, (AlloyBinary op (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)))
   = translateAuxiliaryFormula env1 smtExpr
  where
-  (env1, setExpr) = translate (smtScript, env, x)
+  (env1, setExpr) = translate (env, x)
   n               = read c
   smtExpr         = translateCardinalityComparison env op setExpr n
 
-translateComparison (smtScript, env, (AlloyBinary op (AlloyConstant c SigInt) (AlloyUnary CARDINALITY x)))
+translateComparison (env, (AlloyBinary op (AlloyConstant c SigInt) (AlloyUnary CARDINALITY x)))
   = case op of
     Less -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary Greater (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)
         )
       )
     LTE -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary GTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
       )
     Greater -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary Less (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
       )
     GTE -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary LTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
       )
     NOT_LT -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary NOT_GT (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
       )
     NOT_LTE -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary NOT_GTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)
         )
       )
     NOT_GT -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary NOT_LT (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
       )
     NOT_GTE -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary NOT_LTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)
         )
       )
     EQUALS -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary EQUALS (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
       )
     NOT_EQUALS -> translateComparison
-      ( smtScript
-      , env
+      ( env
       , (AlloyBinary NOT_EQUALS
                      (AlloyUnary CARDINALITY x)
                      (AlloyConstant c SigInt)
@@ -650,26 +634,26 @@ translateComparison (smtScript, env, (AlloyBinary op (AlloyConstant c SigInt) (A
     _ -> error "Invalid comparision operator"
 
 -- general case for = , !=
-translateComparison (smtScript, env, (AlloyBinary EQUALS x y)) = smtExpr
+translateComparison (env, (AlloyBinary EQUALS x y)) = smtExpr
  where
-  (env1, xExpr) = (translate (smtScript, env, x))
-  (env2, yExpr) = (translate (smtScript, env1, y))
+  (env1, xExpr) = (translate (env, x))
+  (env2, yExpr) = (translate (env1, y))
   equal         = SmtBinary Eq xExpr yExpr
   smtExpr       = translateAuxiliaryFormula env2 equal
-translateComparison (smtScript, env, (AlloyBinary NOT_EQUALS x y)) = smtExpr
+translateComparison (env, (AlloyBinary NOT_EQUALS x y)) = smtExpr
  where
   smtExpr = SmtUnary Not equal
-  equal   = translateComparison (smtScript, env, (AlloyBinary EQUALS x y))
+  equal   = translateComparison (env, (AlloyBinary EQUALS x y))
 
 
 -- arithmetic
-translateComparison (smtScript, env, (AlloyBinary op x y)) =
-  translateArithmetic (smtScript, env, (AlloyBinary op x y))
+translateComparison (env, (AlloyBinary op x y)) =
+  translateArithmetic (env, (AlloyBinary op x y))
 
 
 translateCardinalityComparison
   :: Env -> AlloyBinaryOp -> SmtExpr -> Int -> SmtExpr
-translateCardinalityComparison (Env{..}) op setExpr n = case op of
+translateCardinalityComparison (Env {..}) op setExpr n = case op of
   Less -> case n of
     n | n <= 0    -> SmtBoolConstant False
     n | n == 1    -> isEmpty
@@ -696,11 +680,10 @@ translateCardinalityComparison (Env{..}) op setExpr n = case op of
      where
       vars           = generateVars n
       cardinalitySet = generateSet vars
-  NOT_LT -> translateCardinalityComparison Env{..} GTE setExpr n
-  NOT_LTE ->
-    translateCardinalityComparison Env{..} Greater setExpr n
-  NOT_GT  -> translateCardinalityComparison Env{..} LTE setExpr n
-  NOT_GTE -> translateCardinalityComparison Env{..} Less setExpr n
+  NOT_LT  -> translateCardinalityComparison Env { .. } GTE setExpr n
+  NOT_LTE -> translateCardinalityComparison Env { .. } Greater setExpr n
+  NOT_GT  -> translateCardinalityComparison Env { .. } LTE setExpr n
+  NOT_GTE -> translateCardinalityComparison Env { .. } Less setExpr n
   EQUALS  -> case n of
     n | n <= -1   -> SmtBoolConstant False
     n | n == 0    -> isEmpty
@@ -708,9 +691,8 @@ translateCardinalityComparison (Env{..}) op setExpr n = case op of
      where
       vars           = generateVars (n - 1)
       cardinalitySet = generateSet vars
-  NOT_EQUALS -> SmtUnary
-    Not
-    (translateCardinalityComparison Env{..} EQUALS setExpr n)
+  NOT_EQUALS ->
+    SmtUnary Not (translateCardinalityComparison Env { .. } EQUALS setExpr n)
   _ -> error "Invalid comparision operator"
  where
   setSort     = (smtType setExpr)
@@ -727,9 +709,9 @@ translateCardinalityComparison (Env{..}) op setExpr n = case op of
   generateSet (x : xs) =
     SmtBinary Union (SmtUnary Singleton (SmtVar x)) (generateSet xs)
 
-translateArithmetic :: (Env, Env, AlloyExpr) -> SmtExpr
-translateArithmetic (smtScript, env, (AlloyBinary op x y)) =
+translateArithmetic :: (Env, AlloyExpr) -> SmtExpr
+translateArithmetic (env, (AlloyBinary op x y)) =
   error (show (AlloyBinary op x y))
 
-translateIntConstant :: Env -> Env -> Int -> (Env, SmtExpr)
-translateIntConstant smtScript env c = undefined
+translateIntConstant :: Env -> Int -> (Env, SmtExpr)
+translateIntConstant env c = undefined

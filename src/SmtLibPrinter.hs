@@ -5,6 +5,7 @@ import           SmtOperators
 import           Smt
 import           Env
 
+prelude :: String
 prelude = unlines
   [ "(set-logic ALL)"
   , "(set-option :tlimit 30000)"
@@ -16,17 +17,19 @@ prelude = unlines
   ]
 
 printSmtLibScript :: Env -> String
-printSmtLibScript Env {..} =
+printSmtLibScript RootEnv {..} =
   prelude
     ++ (concatMap declareSmtLibSort sorts)
     ++ (concatMap declareSmtLibConstants declarations)
     ++ (concatMap printSmtLibAssert assertions)
     ++ "(check-sat)\n"
     ++ "(get-model)\n"
+printSmtLibScript _ = error "Expects a root environment here"
 
 declareSmtLibSort :: Sort -> String
-declareSmtLibSort (UninterpretedSort x y) = "(declare-sort " ++ x ++ " " ++ (show y) ++ ") \n"
-declareSmtLibSort _ = error("Invalid sort  declaration")
+declareSmtLibSort (UninterpretedSort x y) =
+  "(declare-sort " ++ x ++ " " ++ (show y) ++ ") \n"
+declareSmtLibSort _ = error ("Invalid sort  declaration")
 
 declareSmtLibConstants :: SmtDeclaration -> String
 declareSmtLibConstants SmtVariable {..} =
@@ -97,6 +100,7 @@ printSmtLibExpr (SmtMultiArity op xs) =
 printVariableName :: SmtDeclaration -> String
 printVariableName SmtVariable {..} =
   if isOriginal then ("|" ++ name ++ " |") else name
+printVariableName (SortDeclaration _) = error "Expect SmtVariable"
 
 
 printSmtLibVariable :: SmtDeclaration -> String
@@ -104,6 +108,8 @@ printSmtLibVariable SmtVariable {..} = "(" ++ varName ++ " " ++ varSort ++ ")"
  where
   varName = if isOriginal then ("|" ++ name ++ " |") else name
   varSort = printSmtLibSort sort
+printSmtLibVariable (SortDeclaration _) = error "Expect SmtVariable"
+
 
 printSmtLibUnaryOp :: SmtUnaryOp -> String
 printSmtLibUnaryOp op = case op of

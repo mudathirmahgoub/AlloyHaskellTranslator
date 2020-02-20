@@ -4,28 +4,36 @@ module Env where
 
 import           Smt
 
-data Env = RootEnv | Env
+data Env = RootEnv
   {
     sorts :: [Sort],
     declarations :: [SmtDeclaration],
-    assertions :: [Assertion],
+    assertions :: [Assertion]
+  }
+  | Env
+  {
     auxiliaryFormula::Maybe SmtExpr,
     variablesMap :: [(String, SmtDeclaration)],
     parent :: Env
   } deriving (Show, Eq)
 
 addSort :: Sort -> Env -> Env
-addSort s env = env { sorts = s : sorts env }
+addSort s env = case env of
+  RootEnv {..} -> env { sorts = s : sorts }
+  Env {..}     -> addSort s parent
 
 getDeclaration :: Env -> String -> SmtDeclaration
-getDeclaration env x = getByName (declarations env) x
- where
-  getByName (v : vs) n = if name v == n then v else getByName vs n
-  getByName _        n = error (n ++ " not found")
+getDeclaration env x = case env of
+  RootEnv {..} -> getByName declarations x
+   where
+    getByName (v : vs) n = if name v == n then v else getByName vs n
+    getByName _        n = error (n ++ " not found")
+  Env {..} -> getDeclaration parent x
 
 containsDeclaration :: Env -> String -> Bool
-containsDeclaration Env {..} x =
+containsDeclaration RootEnv {..} x =
   any (\declaration -> matchName declaration x) declarations
+containsDeclaration _ _ = undefined
 
 matchName :: SmtDeclaration -> String -> Bool
 matchName SmtVariable {..} x = x == name
@@ -33,7 +41,9 @@ matchName (SortDeclaration (UninterpretedSort x _)) y = x == y
 matchName _                _ = error ("Unsupported variable name")
 
 addDeclaration :: Env -> SmtDeclaration -> Env
-addDeclaration env f = env { declarations = f : declarations env }
+addDeclaration env f = case env of
+  RootEnv {..} -> env { declarations = f : declarations }
+  Env {..}     -> addDeclaration parent f
 
 addDeclarations :: Env -> [SmtDeclaration] -> Env
 addDeclarations = foldl addDeclaration
@@ -47,15 +57,19 @@ addAssertions = foldl addAssertion
 
 
 
-getVariable :: (Env, Env) -> String -> SmtDeclaration
-getVariable (env, Env {..}) x = get variablesMap x
- where
-  get []           _ = getDeclaration env x -- lookup the variable in the smt script
-  get ((k, v) : t) _ = if k == x then v else (get t x)
+getVariable :: Env -> String -> SmtDeclaration
+getVariable env x = case env of
+  RootEnv {..} -> getDeclaration env x
+  Env {..}     -> get variablesMap x
+   where
+    get []           _ = getVariable parent x -- lookup the variable in the smt script
+    get ((k, v) : t) _ = if k == x then v else (get t x)
 
-contains :: (Env, Env) -> String -> Bool
-contains (env, Env {..}) x =
-  any (\(string, _) -> x == string) variablesMap || (containsDeclaration env x)
+contains :: Env -> String -> Bool
+contains env x = case env of
+  RootEnv {..} -> containsDeclaration env x
+  Env {..} ->
+    any (\(string, _) -> x == string) variablesMap || (contains parent x)
 
 addVariable :: Env -> SmtDeclaration -> Env
 addVariable env variable =
@@ -72,11 +86,12 @@ first (x, _) = x
 second :: (a, b) -> b
 second (_, y) = y
 
+emptyRootEnv :: Env
+emptyRootEnv = RootEnv { sorts        = [uninterpretedAtom, uninterpretedUInt]
+                       , declarations = []
+                       , assertions   = []
+                       }
+
 emptyEnv :: Env
-emptyEnv = Env { sorts            = [uninterpretedAtom, uninterpretedUInt]
-               , declarations     = []
-               , assertions       = []
-               , auxiliaryFormula = Nothing
-               , variablesMap     = []
-               , parent           = RootEnv
-               }
+emptyEnv =
+  Env { auxiliaryFormula = Nothing, variablesMap = [], parent = emptyRootEnv }
