@@ -6,11 +6,11 @@ import           Alloy
 import           Smt
 import           Env
 
-translateModel :: AlloyModel -> SmtScript
+translateModel :: AlloyModel -> Env
 translateModel model = smtScript6
  where
   sigs       = signatures model
-  smtScript1 = declareSignatures emptySmtScript sigs
+  smtScript1 = declareSignatures emptyEnv sigs
   smtScript2 = translateSignatures smtScript1 sigs
   smtScript3 = translateSignatureFacts smtScript2 sigs
   smtScript4 = translateFacts smtScript3 (facts model)
@@ -18,15 +18,15 @@ translateModel model = smtScript6
   smtScript5 = addSpecialAssertions smtScript4
   smtScript6 = translateCommands smtScript5 (commands model)
 
-translateSignatures :: SmtScript -> [Sig] -> SmtScript
+translateSignatures :: Env -> [Sig] -> Env
 translateSignatures smtScript [] = smtScript
 translateSignatures smtScript xs =
   translateHierarchy smtScript (filter isTopLevel xs)
 
-declareSignatures :: SmtScript -> [Sig] -> SmtScript
+declareSignatures :: Env -> [Sig] -> Env
 declareSignatures smtScript xs = foldl declareSignature smtScript xs
 
-declareSignature :: SmtScript -> Sig -> SmtScript
+declareSignature :: Env -> Sig -> Env
 declareSignature smtScript Univ   = addDeclaration smtScript univAtom
 declareSignature smtScript SigInt = addDeclaration smtScript univInt
 declareSignature smtScript None   = addDeclaration smtScript none
@@ -37,10 +37,10 @@ declareSignature smtScript sig = addDeclaration
   SmtVariable { name = label sig, sort = s, isOriginal = True }
   where s = translateType (Prod [sig])
 
-translateHierarchy :: SmtScript -> [Sig] -> SmtScript
+translateHierarchy :: Env -> [Sig] -> Env
 translateHierarchy smtScript xs = foldl translateSignature smtScript xs
 
-translateSignature :: SmtScript -> Sig -> SmtScript
+translateSignature :: Env -> Sig -> Env
 translateSignature smtScript Univ   = smtScript
 translateSignature smtScript SigInt = smtScript
 translateSignature smtScript None   = smtScript
@@ -62,7 +62,7 @@ translateSignature smtScript SubsetSig {..} = smtScript3
   smtScript3 = translateFields smtScript2 SubsetSig { .. }
 
 -- require sig is already defined in SMTScript p
-translateSigMultiplicity :: SmtScript -> Sig -> SmtScript
+translateSigMultiplicity :: Env -> Sig -> Env
 -- sig a
 -- use different from empty set
 translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
@@ -88,7 +88,7 @@ translateSigMultiplicity smtScript sig = addAssertion smtScript assertion
     _      -> Assertion "" smtTrue
 
 -- refactor this with subset 
-translateParent :: SmtScript -> Sig -> SmtScript
+translateParent :: Env -> Sig -> Env
 translateParent smtScript PrimSig {..} = addAssertion smtScript assertion
  where
   childVar  = getDeclaration smtScript primLabel
@@ -107,7 +107,7 @@ translateParent smtScript SubsetSig {..} = addAssertion smtScript assertion
 translateParent _ _ = undefined
 
 
-translateDisjointChildren :: SmtScript -> Sig -> SmtScript
+translateDisjointChildren :: Env -> Sig -> Env
 translateDisjointChildren smtScript PrimSig {..} = addAssertion smtScript
                                                                 assertion
  where
@@ -127,7 +127,7 @@ translateDisjointChildren smtScript PrimSig {..} = addAssertion smtScript
 translateDisjointChildren _ sig =
   error ((label sig) ++ " is not a prime signature")
 
-translateAbstract :: SmtScript -> Sig -> SmtScript
+translateAbstract :: Env -> Sig -> Env
 translateAbstract smtScript PrimSig {..} =
   case isAbstract && not (null children) of
     False -> smtScript
@@ -142,7 +142,7 @@ translateAbstract smtScript PrimSig {..} =
       assertion = Assertion ("abstract " ++ primLabel) equal
 translateAbstract _ sig = error ((label sig) ++ " is not a prime signature")
 
-translateFields :: SmtScript -> Sig -> SmtScript
+translateFields :: Env -> Sig -> Env
 translateFields smtScript sig = smtScript4
  where
   groups        = fields sig
@@ -155,7 +155,7 @@ translateFields smtScript sig = smtScript4
     (Assertion ("disjoint " ++ (show groups)) disjointExprs)
   smtScript4 = translateDisjoint2Decls smtScript3 individuals
 
-declareField :: Sig -> SmtScript -> Decl -> SmtScript
+declareField :: Sig -> Env -> Decl -> Env
 declareField sig smtScript Decl {..} = addDeclaration smtScript constant
  where
   constant = SmtVariable { name       = concat (declNames Decl { .. })
@@ -164,7 +164,7 @@ declareField sig smtScript Decl {..} = addDeclaration smtScript constant
                          }
   smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
-translateField :: Sig -> SmtScript -> Decl -> SmtScript
+translateField :: Sig -> Env -> Decl -> Env
 -- Sig A {field: expr} is translated into 
 -- (1) all this: A | let $s$ = this.field | $s$ in expr
 -- (2) field in (A -> removeMultiplicity[expr]) where every occurence of 'this' in expr is replaced with A
@@ -204,11 +204,11 @@ translateField sig smtScript Decl {..} = smtScript1 -- ToDo: fix this
     translateFormula smtScript ((show fieldVar) ++ " field subset") subsetExpr
   smtScript1 = addAssertions smtScript [multiplicityAssertion, subsetAssertion]
 
-translateDisjointDecls :: SmtScript -> Env -> [Decl] -> SmtExpr
+translateDisjointDecls :: Env -> Env -> [Decl] -> SmtExpr
 translateDisjointDecls smtScript env decls =
   SmtMultiArity And (map (translateDisjointDecl smtScript env) decls)
 
-translateDisjointDecl :: SmtScript -> Env -> Decl -> SmtExpr
+translateDisjointDecl :: Env -> Env -> Decl -> SmtExpr
 translateDisjointDecl smtScript env decl = andExpr
  where
   function (x, y) = SmtBinary
@@ -228,17 +228,17 @@ translateDisjointDecl smtScript env decl = andExpr
   andExpr = SmtMultiArity And (map function pairs)
 
 
-translateDisjoint2Decls :: SmtScript -> [Decl] -> SmtScript
+translateDisjoint2Decls :: Env -> [Decl] -> Env
 translateDisjoint2Decls smtScript _ = smtScript -- ToDo: fix this
 
-translateSignatureFacts :: SmtScript -> [Sig] -> SmtScript
+translateSignatureFacts :: Env -> [Sig] -> Env
 translateSignatureFacts smtScript [] = smtScript
 translateSignatureFacts smtScript xs =
   foldl translateSignatureFact smtScript xs
 
 -- sig s{...}{expr} is translated into
 -- {all this: s | expr}
-translateSignatureFact :: SmtScript -> Sig -> SmtScript
+translateSignatureFact :: Env -> Sig -> Env
 translateSignatureFact smtScript sig = case (sigfacts sig) of
   [] -> smtScript
   _  -> smtScript1   where
@@ -255,26 +255,26 @@ translateSignatureFact smtScript sig = case (sigfacts sig) of
                         , disjoint2 = False
                         }
 
-translateFacts :: SmtScript -> [Fact] -> SmtScript
+translateFacts :: Env -> [Fact] -> Env
 translateFacts smtScript xs = foldl translateFact smtScript xs
 
-translateFact :: SmtScript -> Fact -> SmtScript
+translateFact :: Env -> Fact -> Env
 translateFact smtScript (Fact name alloyExpr) = addAssertion smtScript
                                                              assertion
  where
   assertion    = Assertion name smtExpr
   (_, smtExpr) = translate (smtScript, emptyEnv, alloyExpr)
 
-addSpecialAssertions :: SmtScript -> SmtScript
+addSpecialAssertions :: Env -> Env
 addSpecialAssertions smtScript = smtScript -- ToDo: change this later
 
-translateCommands :: SmtScript -> [Command] -> SmtScript
+translateCommands :: Env -> [Command] -> Env
 translateCommands smtScript xs = foldl translateCommand smtScript xs
 
-translateCommand :: SmtScript -> Command -> SmtScript
+translateCommand :: Env -> Command -> Env
 translateCommand _ _ = undefined
 
-translateFormula :: SmtScript -> String -> AlloyExpr -> Assertion
+translateFormula :: Env -> String -> AlloyExpr -> Assertion
 translateFormula smtScript string alloyExpr = assertion
  where
   (env, smtExpr) = translate (smtScript, emptyEnv, alloyExpr)
@@ -291,7 +291,7 @@ translateAuxiliaryFormula Env { auxiliaryFormula = (Just aux) } expr =
       SmtQt ForAll variables (SmtBinary Implies body expr)
     _ -> error ("Auxiliary formula " ++ (show aux) ++ " is not supported")
 
-translate :: (SmtScript, Env, AlloyExpr) -> (Env, SmtExpr)
+translate :: (Env, Env, AlloyExpr) -> (Env, SmtExpr)
 translate (smtScript, env, Signature x) =
   (env, SmtVar (getDeclaration smtScript (label x)))
 translate (smtScript, env, Field Decl {..}) =
@@ -524,7 +524,7 @@ translateType AlloyBool = SmtBool
 
 -- SmtExpr for multiplicity and range constraints
 -- ToDo: optimize this such that this is called once for Decl like (x, y : expr)    
-translateDecl :: SmtScript -> Env -> Decl -> (SmtDeclaration, [SmtExpr])
+translateDecl :: Env -> Env -> Decl -> (SmtDeclaration, [SmtExpr])
 translateDecl smtScript env decl = (var, exprs)
  where
   varName      = concat (declNames decl)
@@ -580,7 +580,7 @@ translateDecl smtScript env decl = (var, exprs)
   translateDeclExpr (_, _, AlloyBinary _ _ _) = undefined
   translateDeclExpr (_, _, x) = error ("Invalid decl expr: " ++ (show x))
 
-translateComparison :: (SmtScript, Env, AlloyExpr) -> SmtExpr
+translateComparison :: (Env, Env, AlloyExpr) -> SmtExpr
 
 translateComparison (smtScript, env, (AlloyBinary op (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)))
   = translateAuxiliaryFormula env1 smtExpr
@@ -669,7 +669,7 @@ translateComparison (smtScript, env, (AlloyBinary op x y)) =
 
 translateCardinalityComparison
   :: Env -> AlloyBinaryOp -> SmtExpr -> Int -> SmtExpr
-translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
+translateCardinalityComparison (Env{..}) op setExpr n = case op of
   Less -> case n of
     n | n <= 0    -> SmtBoolConstant False
     n | n == 1    -> isEmpty
@@ -696,11 +696,11 @@ translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
      where
       vars           = generateVars n
       cardinalitySet = generateSet vars
-  NOT_LT -> translateCardinalityComparison (Env aux vars index) GTE setExpr n
+  NOT_LT -> translateCardinalityComparison Env{..} GTE setExpr n
   NOT_LTE ->
-    translateCardinalityComparison (Env aux vars index) Greater setExpr n
-  NOT_GT  -> translateCardinalityComparison (Env aux vars index) LTE setExpr n
-  NOT_GTE -> translateCardinalityComparison (Env aux vars index) Less setExpr n
+    translateCardinalityComparison Env{..} Greater setExpr n
+  NOT_GT  -> translateCardinalityComparison Env{..} LTE setExpr n
+  NOT_GTE -> translateCardinalityComparison Env{..} Less setExpr n
   EQUALS  -> case n of
     n | n <= -1   -> SmtBoolConstant False
     n | n == 0    -> isEmpty
@@ -710,7 +710,7 @@ translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
       cardinalitySet = generateSet vars
   NOT_EQUALS -> SmtUnary
     Not
-    (translateCardinalityComparison (Env aux vars index) EQUALS setExpr n)
+    (translateCardinalityComparison Env{..} EQUALS setExpr n)
   _ -> error "Invalid comparision operator"
  where
   setSort     = (smtType setExpr)
@@ -727,9 +727,9 @@ translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
   generateSet (x : xs) =
     SmtBinary Union (SmtUnary Singleton (SmtVar x)) (generateSet xs)
 
-translateArithmetic :: (SmtScript, Env, AlloyExpr) -> SmtExpr
+translateArithmetic :: (Env, Env, AlloyExpr) -> SmtExpr
 translateArithmetic (smtScript, env, (AlloyBinary op x y)) =
   error (show (AlloyBinary op x y))
 
-translateIntConstant :: SmtScript -> Env -> Int -> (Env, SmtExpr)
+translateIntConstant :: Env -> Env -> Int -> (Env, SmtExpr)
 translateIntConstant smtScript env c = undefined

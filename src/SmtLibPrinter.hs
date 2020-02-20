@@ -3,6 +3,7 @@ module SmtLibPrinter where
 
 import           SmtOperators
 import           Smt
+import           Env
 
 prelude = unlines
   [ "(set-logic ALL)"
@@ -14,8 +15,8 @@ prelude = unlines
   , "(set-option :sets-ext true)"
   ]
 
-printSmtLibScript :: SmtScript -> String
-printSmtLibScript SmtScript {..} =
+printSmtLibScript :: Env -> String
+printSmtLibScript Env {..} =
   prelude
     ++ (concatMap declareSmtLibSort sorts)
     ++ (concatMap declareSmtLibConstants declarations)
