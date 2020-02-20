@@ -33,7 +33,7 @@ getDeclaration env x = case env of
 containsDeclaration :: Env -> String -> Bool
 containsDeclaration RootEnv {..} x =
   any (\declaration -> matchName declaration x) declarations
-containsDeclaration _ _ = undefined
+containsDeclaration Env{..} x = containsDeclaration parent x
 
 matchName :: SmtDeclaration -> String -> Bool
 matchName SmtVariable {..} x = x == name

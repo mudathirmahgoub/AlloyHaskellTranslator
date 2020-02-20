@@ -122,10 +122,14 @@ fact3 :: Fact
 fact3 =
   Fact "fact3 b1 != b2" (AlloyBinary NOT_EQUALS (Signature b1) (Signature b2))
 
+fact4 :: Fact
+fact4 =
+  Fact "fact4 1 = 1" (AlloyBinary EQUALS (AlloyConstant "1" SigInt) (AlloyConstant "1" SigInt))
+
 alloyModel :: AlloyModel
 alloyModel = AlloyModel
   { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
-  , facts      = [fact1, fact2, fact3]
+  , facts      = [fact1, fact2, fact3, fact4]
   , commands   = []
   }
 

@@ -260,13 +260,7 @@ translateFacts :: Env -> [Fact] -> Env
 translateFacts env xs = foldl translateFact env xs
 
 translateFact :: Env -> Fact -> Env
-translateFact env (Fact name alloyExpr) = addAssertion env assertion
- where
-  assertion    = Assertion name smtExpr
-  (_, smtExpr) = translate
-    ( Env { auxiliaryFormula = Nothing, variablesMap = [], parent = env }
-    , alloyExpr
-    )
+translateFact env (Fact name alloyExpr) = translateFormula env name alloyExpr
 
 addSpecialAssertions :: Env -> Env
 addSpecialAssertions env = env -- ToDo: change this later
@@ -387,26 +381,16 @@ translate (env, (AlloyBinary IMPLIES x y)) =
               (second (translate (env, y)))
   )
 
-translate (env, (AlloyBinary Less x y)) =
-  (env, translateComparison (env, (AlloyBinary Less x y)))
-translate (env, (AlloyBinary LTE x y)) =
-  (env, translateComparison (env, (AlloyBinary LTE x y)))
-translate (env, (AlloyBinary Greater x y)) =
-  (env, translateComparison (env, (AlloyBinary Greater x y)))
-translate (env, (AlloyBinary GTE x y)) =
-  (env, translateComparison (env, (AlloyBinary GTE x y)))
-translate (env, (AlloyBinary NOT_LT x y)) =
-  (env, translateComparison (env, (AlloyBinary NOT_LT x y)))
-translate (env, (AlloyBinary NOT_LTE x y)) =
-  (env, translateComparison (env, (AlloyBinary NOT_LTE x y)))
-translate (env, (AlloyBinary NOT_GT x y)) =
-  (env, translateComparison (env, (AlloyBinary NOT_GT x y)))
-translate (env, (AlloyBinary NOT_GTE x y)) =
-  (env, translateComparison (env, (AlloyBinary NOT_GTE x y)))
-translate (env, (AlloyBinary EQUALS x y)) =
-  (env, translateComparison (env, (AlloyBinary EQUALS x y)))
-translate (env, (AlloyBinary NOT_EQUALS x y)) =
-  (env, translateComparison (env, (AlloyBinary NOT_EQUALS x y)))
+translate (env, (AlloyBinary Less x y)) = translateComparison (env, (AlloyBinary Less x y))
+translate (env, (AlloyBinary LTE x y)) = translateComparison (env, (AlloyBinary LTE x y))
+translate (env, (AlloyBinary Greater x y)) = translateComparison (env, (AlloyBinary Greater x y))
+translate (env, (AlloyBinary GTE x y)) = translateComparison (env, (AlloyBinary GTE x y))
+translate (env, (AlloyBinary NOT_LT x y)) = translateComparison (env, (AlloyBinary NOT_LT x y))
+translate (env, (AlloyBinary NOT_LTE x y)) = translateComparison (env, (AlloyBinary NOT_LTE x y))
+translate (env, (AlloyBinary NOT_GT x y)) = translateComparison (env, (AlloyBinary NOT_GT x y))
+translate (env, (AlloyBinary NOT_GTE x y)) = translateComparison (env, (AlloyBinary NOT_GTE x y))
+translate (env, (AlloyBinary EQUALS x y)) = translateComparison (env, (AlloyBinary EQUALS x y))
+translate (env, (AlloyBinary NOT_EQUALS x y)) = translateComparison (env, (AlloyBinary NOT_EQUALS x y))
 
 translate (_  , (AlloyBinary SHL _ _)) = undefined
 translate (_  , (AlloyBinary SHA _ _)) = undefined
@@ -576,10 +560,10 @@ translateDecl env decl = (var, exprs)
   translateDeclExpr (_, AlloyBinary _ _ _) = undefined
   translateDeclExpr (_, x) = error ("Invalid decl expr: " ++ (show x))
 
-translateComparison :: (Env, AlloyExpr) -> SmtExpr
+translateComparison :: (Env, AlloyExpr) -> (Env, SmtExpr)
 
 translateComparison (env, (AlloyBinary op (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)))
-  = translateAuxiliaryFormula env1 smtExpr
+  = (env1, translateAuxiliaryFormula env1 smtExpr)
  where
   (env1, setExpr) = translate (env, x)
   n               = read c
@@ -636,16 +620,16 @@ translateComparison (env, (AlloyBinary op (AlloyConstant c SigInt) (AlloyUnary C
     _ -> error "Invalid comparision operator"
 
 -- general case for = , !=
-translateComparison (env, (AlloyBinary EQUALS x y)) = smtExpr
+translateComparison (env, (AlloyBinary EQUALS x y)) = (env2, smtExpr)
  where
   (env1, xExpr) = (translate (env, x))
   (env2, yExpr) = (translate (env1, y))
   equal         = SmtBinary Eq xExpr yExpr
   smtExpr       = translateAuxiliaryFormula env2 equal
-translateComparison (env, (AlloyBinary NOT_EQUALS x y)) = smtExpr
+translateComparison (env, (AlloyBinary NOT_EQUALS x y)) = (env1, smtExpr)
  where
   smtExpr = SmtUnary Not equal
-  equal   = translateComparison (env, (AlloyBinary EQUALS x y))
+  (env1, equal) = translateComparison (env, (AlloyBinary EQUALS x y))
 
 
 -- arithmetic
@@ -711,9 +695,15 @@ translateCardinalityComparison (Env {..}) op setExpr n = case op of
   generateSet (x : xs) =
     SmtBinary Union (SmtUnary Singleton (SmtVar x)) (generateSet xs)
 
-translateArithmetic :: (Env, AlloyExpr) -> SmtExpr
+translateArithmetic :: (Env, AlloyExpr) -> (Env, SmtExpr)
 translateArithmetic (env, (AlloyBinary op x y)) =
   error (show (AlloyBinary op x y))
 
 translateIntConstant :: Env -> Int -> (Env, SmtExpr)
-translateIntConstant env c = undefined
+translateIntConstant env n = (env1, smtExpr)
+ where
+  env1 = if containsDeclaration env varName
+    then env
+    else addDeclaration env (SmtVariable varName uninterpretedUInt False)
+  varName = "u." ++ (show n)
+  smtExpr = SmtVar (getDeclaration env1 varName)
