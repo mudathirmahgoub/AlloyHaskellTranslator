@@ -297,8 +297,8 @@ translate (smtScript, env, Signature x) =
   (env, SmtVar (getConstant smtScript (label x)))
 translate (smtScript, env, Field Decl {..}) =
   (env, SmtVar (getConstant smtScript (getFieldName Decl { .. })))
-translate (_, _, (AlloyConstant c sig)) = case sig of
-  SigInt -> undefined
+translate (smtScript, env, (AlloyConstant c sig)) = case sig of
+  SigInt -> translateIntConstant smtScript env (read c)
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
 translate (smtScript, env, AlloyVar x) = (env, SmtVar variable)
   where variable = getVariable (smtScript, env) (alloyVarName x)
@@ -728,3 +728,6 @@ translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
 translateArithmetic :: (SmtScript, Env, AlloyExpr) -> SmtExpr
 translateArithmetic (smtScript, env, (AlloyBinary op x y)) =
   error (show (AlloyBinary op x y))
+
+translateIntConstant :: SmtScript -> Env -> Int -> (Env, SmtExpr)
+translateIntConstant smtScript env c = undefined
