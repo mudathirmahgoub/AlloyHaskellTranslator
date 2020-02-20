@@ -3,15 +3,23 @@ module Smt where
 
 import           Utils
 import           SmtOperators
-import           Control.Monad.State
+
+
+-- instance Show (State Int Int) where
+--     show = "x"
+
+-- instance Show Stateful where
+--     show (Stateful x) = show x
+
+-- instance Eq Stateful where
+--     (Stateful x1 y1) == (Stateful x2 y2) = (x1 == x2) && (y1 == y2)
 
 data SmtScript
     = SmtScript
     {
         sorts :: [Sort],
         constants :: [SmtVariable],
-        assertions :: [Assertion],
-        freshIndex :: State Int
+        assertions :: [Assertion]
     } deriving (Show, Eq)
 
 emptySmtScript :: SmtScript
@@ -234,9 +242,9 @@ smtJoinType x y = error ("Join Error: " ++ show (x, y))
 
 -- SmtInt | SmtBool | Atom | UInt | Tuple [Sort] | Set Sort
 makeRelation :: SmtExpr -> SmtExpr
-makeRelation x = case smtType x of 
+makeRelation x = case smtType x of
     Set (Tuple _) -> x
-    Atom -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
-    UInt -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
-    Tuple _ -> SmtUnary Singleton x
-    _ -> error((show x) ++ " is not a relation")
+    Atom          -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
+    UInt          -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
+    Tuple _       -> SmtUnary Singleton x
+    _             -> error ((show x) ++ " is not a relation")

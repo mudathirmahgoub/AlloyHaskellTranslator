@@ -4,7 +4,7 @@ module Env where
 
 import           Smt
 
-data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtVariable)]}
+data Env = Env{auxiliaryFormula::Maybe SmtExpr, variablesMap :: [(String, SmtVariable)], lastIndex :: Int}
 
 getVariable :: (SmtScript, Env) -> String -> SmtVariable
 getVariable (smtScript, Env {..}) x = get variablesMap x
@@ -33,6 +33,8 @@ second :: (a, b) -> b
 second (_, y) = y
 
 emptyEnv :: Env
-emptyEnv = Env { auxiliaryFormula = Nothing, variablesMap = [] }
+emptyEnv = Env { auxiliaryFormula = Nothing, variablesMap = [], lastIndex = 0 }
 
 
+getFreshIndex :: Env -> Env
+getFreshIndex (Env x y z) = Env x y (z + 1)

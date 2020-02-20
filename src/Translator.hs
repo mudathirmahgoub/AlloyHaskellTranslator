@@ -398,12 +398,9 @@ translate (smtScript, env, (AlloyBinary IMPLIES x y)) =
               (second (translate (smtScript, env, x)))
               (second (translate (smtScript, env, y)))
   )
+
 translate (smtScript, env, (AlloyBinary Less x y)) =
-  ( env
-  , SmtBinary Lt
-              (second (translate (smtScript, env, x)))
-              (second (translate (smtScript, env, y)))
-  )
+  (env, translateComparison (smtScript, env, (AlloyBinary Less x y)))
 translate (smtScript, env, (AlloyBinary LTE x y)) =
   ( env
   , SmtBinary Lte
@@ -602,10 +599,71 @@ translateComparison :: (SmtScript, Env, AlloyExpr) -> SmtExpr
 
 translateComparison (smtScript, env, (AlloyBinary op (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)))
   = translateAuxiliaryFormula env1 smtExpr
-  where
-    (env1, setExpr) = translate (smtScript, env, x)
-    n = read c
-    smtExpr = translateCardinalityComparison op setExpr n
+ where
+  (env1, setExpr) = translate (smtScript, env, x)
+  n               = read c
+  smtExpr         = translateCardinalityComparison env op setExpr n
+
+translateComparison (smtScript, env, (AlloyBinary op (AlloyConstant c SigInt) (AlloyUnary CARDINALITY x)))
+  = case op of
+    Less -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary Greater (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)
+        )
+      )
+    LTE -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary GTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
+      )
+    Greater -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary Less (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
+      )
+    GTE -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary LTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
+      )
+    NOT_LT -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary NOT_GT (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
+      )
+    NOT_LTE -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary NOT_GTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)
+        )
+      )
+    NOT_GT -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary NOT_LT (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
+      )
+    NOT_GTE -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary NOT_LTE (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt)
+        )
+      )
+    EQUALS -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary EQUALS (AlloyUnary CARDINALITY x) (AlloyConstant c SigInt))
+      )
+    NOT_EQUALS -> translateComparison
+      ( smtScript
+      , env
+      , (AlloyBinary NOT_EQUALS
+                     (AlloyUnary CARDINALITY x)
+                     (AlloyConstant c SigInt)
+        )
+      )
+    _ -> error "Invalid comparision operator"
+
 
 translateComparison (smtScript, env, (AlloyBinary op x y)) =
   translateAuxiliaryFormula
@@ -616,17 +674,61 @@ translateComparison (smtScript, env, (AlloyBinary op x y)) =
     )
 
 
-translateCardinalityComparison :: AlloyBinaryOp -> SmtExpr -> Int -> SmtExpr
-translateCardinalityComparison op setExpr n = case op of
-      Less    -> generateCardinalityExpr Lt SetExpr n
-      LTE     -> generateCardinalityExpr Lte SetExpr n
-      Greater -> generateCardinalityExpr Gt SetExpr n
-      GTE     -> generateCardinalityExpr Gte SetExpr n
-      NOT_LT  -> generateCardinalityExpr Gte SetExpr n
-      NOT_LTE -> generateCardinalityExpr Gt SetExpr n
-      NOT_GT  -> generateCardinalityExpr Lte SetExpr n
-      NOT_GTE -> generateCardinalityExpr Lt SetExpr n
-      EQUALS  -> generateCardinalityExpr Eq SetExpr n
-      NOT_EQUALS -> SmtUnary Not (generateCardinalityExpr Eq SetExpr n)
-      _ -> error ""
-      where 
+translateCardinalityComparison
+  :: Env -> AlloyBinaryOp -> SmtExpr -> Int -> SmtExpr
+translateCardinalityComparison (Env aux vars index) op setExpr n = case op of
+  Less -> case n of
+    n | n <= 0    -> SmtBoolConstant False
+    n | n == 1    -> isEmpty
+    n | otherwise -> SmtQt Exists vars (SmtBinary Subset setExpr cardinalitySet)
+     where
+      vars           = generateVars (n - 1)
+      cardinalitySet = generateSet vars
+  LTE     -> case n of
+    n | n <= -1    -> SmtBoolConstant False
+    n | n == 0    -> isEmpty
+    n | otherwise -> SmtQt Exists vars (SmtBinary Subset setExpr cardinalitySet)
+     where
+      vars           = generateVars n
+      cardinalitySet = generateSet vars
+  Greater -> case n of
+    n | n <= -1    -> SmtBoolConstant True    
+    n | otherwise -> SmtQt Exists vars (SmtBinary Subset cardinalitySet setExpr)
+     where
+      vars           = generateVars (n + 1)
+      cardinalitySet = generateSet vars
+  GTE     -> case n of
+    n | n <= 0    -> SmtBoolConstant True    
+    n | otherwise -> SmtQt Exists vars (SmtBinary Subset cardinalitySet setExpr)
+     where
+      vars           = generateVars n
+      cardinalitySet = generateSet vars
+  NOT_LT  -> translateCardinalityComparison (Env aux vars index) GTE setExpr n
+  NOT_LTE -> translateCardinalityComparison (Env aux vars index) Greater setExpr n
+  NOT_GT  -> translateCardinalityComparison (Env aux vars index) LTE setExpr n
+  NOT_GTE -> translateCardinalityComparison (Env aux vars index) Less setExpr n
+  EQUALS  -> case n of
+    n | n <= -1   -> SmtBoolConstant False
+    n | n == 0    -> isEmpty
+    n | otherwise -> SmtQt Exists vars (SmtBinary Eq setExpr cardinalitySet)
+     where
+      vars           = generateVars (n - 1)
+      cardinalitySet = generateSet vars
+  NOT_EQUALS -> SmtUnary
+    Not
+    (translateCardinalityComparison (Env aux vars index) EQUALS setExpr n)
+  _ -> error "Invalid comparision operator"
+ where
+  setSort     = (smtType setExpr)
+  emptySet    = SmtUnary EmptySet (SortExpr setSort)
+  elementSort = case setSort of
+    Set x -> x
+    _     -> error ((show setSort) ++ " is not a set")
+  isEmpty = SmtBinary Eq setExpr emptySet
+  generateVars n | n > 0 =
+    map (\n -> SmtVariable ("v" ++ (show n)) elementSort False) [1 .. n]
+  generateVars n | n <= 0 = error ((show n) ++ " must be positive")
+  generateSet []       = error "expects at least one variable"
+  generateSet (x : []) = SmtUnary Singleton (SmtVar x)
+  generateSet (x : xs) =
+    SmtBinary Union (SmtUnary Singleton (SmtVar x)) (generateSet xs)
