@@ -26,14 +26,14 @@ declareSignatures :: Env -> [Sig] -> Env
 declareSignatures env xs = foldl declareSignature env xs
 
 declareSignature :: Env -> Sig -> Env
-declareSignature env Univ   = addDeclaration env univAtom
-declareSignature env SigInt = addDeclaration env univInt
-declareSignature env None   = addDeclaration env none
+declareSignature env Univ   = env
+declareSignature env SigInt = env
+declareSignature env None   = env
 declareSignature _ SigString =
   error ("Strings are not supported yet in alloy.")
 declareSignature env sig = addDeclaration
   env
-  SmtVariable { name = label sig, sort = s, isOriginal = True }
+  SmtVariable { name = label sig, sort = s, isOriginal = True, arguments = [] }
   where s = translateType (Prod [sig])
 
 translateHierarchy :: Env -> [Sig] -> Env
@@ -71,7 +71,7 @@ translateSigMultiplicity env sig = addAssertion env assertion
     Set (Tuple ((UninterpretedSort u arity) : [])) ->
       (UninterpretedSort u arity)
     _ -> error ("invalid sig sort " ++ (show s))
-  x           = SmtVariable { name = "x", sort = s, isOriginal = False }
+  x = SmtVariable { name = "x", sort = s, isOriginal = False, arguments = [] }
   singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar x]))
   isSingleton = SmtBinary Eq (SmtVar c) singleton
   subset      = SmtBinary Subset singleton (SmtVar c)
@@ -157,6 +157,7 @@ declareField sig env Decl {..} = addDeclaration env constant
   constant = SmtVariable { name       = concat (declNames Decl { .. })
                          , sort       = smtSort
                          , isOriginal = True
+                         , arguments  = []
                          }
   smtSort = translateType (alloyType (AlloyBinary ARROW (Signature sig) expr))
 
@@ -381,16 +382,26 @@ translate (env, (AlloyBinary IMPLIES x y)) =
               (second (translate (env, y)))
   )
 
-translate (env, (AlloyBinary Less x y)) = translateComparison (env, (AlloyBinary Less x y))
-translate (env, (AlloyBinary LTE x y)) = translateComparison (env, (AlloyBinary LTE x y))
-translate (env, (AlloyBinary Greater x y)) = translateComparison (env, (AlloyBinary Greater x y))
-translate (env, (AlloyBinary GTE x y)) = translateComparison (env, (AlloyBinary GTE x y))
-translate (env, (AlloyBinary NOT_LT x y)) = translateComparison (env, (AlloyBinary NOT_LT x y))
-translate (env, (AlloyBinary NOT_LTE x y)) = translateComparison (env, (AlloyBinary NOT_LTE x y))
-translate (env, (AlloyBinary NOT_GT x y)) = translateComparison (env, (AlloyBinary NOT_GT x y))
-translate (env, (AlloyBinary NOT_GTE x y)) = translateComparison (env, (AlloyBinary NOT_GTE x y))
-translate (env, (AlloyBinary EQUALS x y)) = translateComparison (env, (AlloyBinary EQUALS x y))
-translate (env, (AlloyBinary NOT_EQUALS x y)) = translateComparison (env, (AlloyBinary NOT_EQUALS x y))
+translate (env, (AlloyBinary Less x y)) =
+  translateComparison (env, (AlloyBinary Less x y))
+translate (env, (AlloyBinary LTE x y)) =
+  translateComparison (env, (AlloyBinary LTE x y))
+translate (env, (AlloyBinary Greater x y)) =
+  translateComparison (env, (AlloyBinary Greater x y))
+translate (env, (AlloyBinary GTE x y)) =
+  translateComparison (env, (AlloyBinary GTE x y))
+translate (env, (AlloyBinary NOT_LT x y)) =
+  translateComparison (env, (AlloyBinary NOT_LT x y))
+translate (env, (AlloyBinary NOT_LTE x y)) =
+  translateComparison (env, (AlloyBinary NOT_LTE x y))
+translate (env, (AlloyBinary NOT_GT x y)) =
+  translateComparison (env, (AlloyBinary NOT_GT x y))
+translate (env, (AlloyBinary NOT_GTE x y)) =
+  translateComparison (env, (AlloyBinary NOT_GTE x y))
+translate (env, (AlloyBinary EQUALS x y)) =
+  translateComparison (env, (AlloyBinary EQUALS x y))
+translate (env, (AlloyBinary NOT_EQUALS x y)) =
+  translateComparison (env, (AlloyBinary NOT_EQUALS x y))
 
 translate (_  , (AlloyBinary SHL _ _)) = undefined
 translate (_  , (AlloyBinary SHA _ _)) = undefined
@@ -479,7 +490,7 @@ translate (env, (AlloyQt op decls body)) = (env2, smtQt)
 -- let expression
 translate (env, (AlloyLet var alloyExpr body)) = (env3, smtLet)
  where
-  smtVar          = SmtVariable (alloyVarName var) (smtType smtExpr) True
+  smtVar          = SmtVariable (alloyVarName var) (smtType smtExpr) True []
   (env1, smtExpr) = translate (env, alloyExpr)
   env2            = addVariable env1 smtVar
   (env3, smtBody) = translate (env2, body)
@@ -517,16 +528,22 @@ translateDecl env decl = (var, exprs)
     varSort      = case (smtType smtExpr) of
       Set (Tuple (y : [])) -> Tuple (y : []) -- arity 1
       s -> error ("Expected a relation with arity 1. Found " ++ (show s))
-    variable =
-      SmtVariable { name = varName, sort = varSort, isOriginal = True }
+    variable = SmtVariable { name       = varName
+                           , sort       = varSort
+                           , isOriginal = True
+                           , arguments  = []
+                           }
     member = SmtBinary Member (SmtVar variable) smtExpr
 
   translateDeclExpr (env, AlloyUnary SOMEOF x) = (variable, [subset, notEmpty])
    where
     (_, smtExpr) = translate (env, x)
     varSort      = smtType smtExpr
-    variable =
-      SmtVariable { name = varName, sort = varSort, isOriginal = True }
+    variable     = SmtVariable { name       = varName
+                               , sort       = varSort
+                               , isOriginal = True
+                               , arguments  = []
+                               }
     subset   = SmtBinary Subset (SmtVar variable) smtExpr
     emptySet = SmtUnary EmptySet (SortExpr varSort)
     notEmpty = SmtUnary Not (SmtBinary Eq (SmtVar variable) emptySet)
@@ -534,8 +551,11 @@ translateDecl env decl = (var, exprs)
    where
     (_, smtExpr) = translate (env, x)
     varSort      = smtType smtExpr
-    variable =
-      SmtVariable { name = varName, sort = varSort, isOriginal = True }
+    variable     = SmtVariable { name       = varName
+                               , sort       = varSort
+                               , isOriginal = True
+                               , arguments  = []
+                               }
     subset      = SmtBinary Subset (SmtVar variable) smtExpr
     emptySet    = SmtUnary EmptySet (SortExpr varSort)
     empty       = SmtBinary Eq (SmtVar variable) emptySet
@@ -543,6 +563,7 @@ translateDecl env decl = (var, exprs)
     element     = SmtVariable { name       = varName ++ "Singleton"
                               , sort       = elementSort
                               , isOriginal = False
+                              , arguments  = []
                               }
     singleton   = (SmtUnary Singleton (SmtMultiArity MkTuple [SmtVar element]))
     isSingleton = SmtBinary Eq (SmtVar variable) singleton
@@ -553,8 +574,11 @@ translateDecl env decl = (var, exprs)
    where
     (_, smtExpr) = translate (env, x)
     varSort      = smtType smtExpr
-    variable =
-      SmtVariable { name = varName, sort = varSort, isOriginal = True }
+    variable     = SmtVariable { name       = varName
+                               , sort       = varSort
+                               , isOriginal = True
+                               , arguments  = []
+                               }
     subset = SmtBinary Subset (SmtVar variable) smtExpr
 
   translateDeclExpr (_, AlloyBinary _ _ _) = undefined
@@ -628,7 +652,7 @@ translateComparison (env, (AlloyBinary EQUALS x y)) = (env2, smtExpr)
   smtExpr       = translateAuxiliaryFormula env2 equal
 translateComparison (env, (AlloyBinary NOT_EQUALS x y)) = (env1, smtExpr)
  where
-  smtExpr = SmtUnary Not equal
+  smtExpr       = SmtUnary Not equal
   (env1, equal) = translateComparison (env, (AlloyBinary EQUALS x y))
 
 
@@ -688,7 +712,7 @@ translateCardinalityComparison (Env {..}) op setExpr n = case op of
     _     -> error ((show setSort) ++ " is not a set")
   isEmpty = SmtBinary Eq setExpr emptySet
   generateVars n | n > 0 =
-    map (\n -> SmtVariable ("v" ++ (show n)) elementSort False) [1 .. n]
+    map (\n -> SmtVariable ("v" ++ (show n)) elementSort False []) [1 .. n]
   generateVars n | n <= 0 = error ((show n) ++ " must be positive")
   generateSet []       = error "expects at least one variable"
   generateSet (x : []) = SmtUnary Singleton (SmtVar x)
@@ -704,6 +728,6 @@ translateIntConstant env n = (env1, smtExpr)
  where
   env1 = if containsDeclaration env varName
     then env
-    else addDeclaration env (SmtVariable varName uninterpretedUInt False)
+    else addDeclaration env (SmtVariable varName uninterpretedUInt False [])
   varName = "u." ++ (show n)
   smtExpr = SmtVar (getDeclaration env1 varName)

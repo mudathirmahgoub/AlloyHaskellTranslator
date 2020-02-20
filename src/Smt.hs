@@ -19,7 +19,8 @@ data SmtDeclaration
     {
         name :: String,
         sort :: Sort,
-        isOriginal :: Bool -- is it original smtScript name or auxiliary name?
+        isOriginal :: Bool, -- is it original smtScript name or auxiliary name?
+        arguments :: [Sort] -- zero if the function is constant
     }
     | SortDeclaration Sort
     deriving (Eq)
@@ -39,6 +40,7 @@ data SmtExpr
     | SmtQt SmtQuantifier [SmtDeclaration] SmtExpr
     | SortExpr Sort
     | SmtMultiArity SmtMultiArityOp [SmtExpr]
+    | SmtCall SmtDeclaration [SmtExpr]
     deriving (Show, Eq)
 
 smtTrue :: SmtExpr
@@ -60,12 +62,14 @@ none :: SmtDeclaration
 none = SmtVariable { name       = "none"
                    , sort       = Set (Tuple [uninterpretedAtom])
                    , isOriginal = False
+                   , arguments  = []
                    }
 
 univAtom :: SmtDeclaration
 univAtom = SmtVariable { name       = "univAtom"
                        , sort       = Set (Tuple [uninterpretedAtom])
                        , isOriginal = False
+                       , arguments  = []
                        }
 
 idenAtom :: SmtDeclaration
@@ -73,13 +77,22 @@ idenAtom = SmtVariable
     { name       = "idenAtom"
     , sort       = Set (Tuple [uninterpretedAtom, uninterpretedAtom])
     , isOriginal = False
+    , arguments  = []
     }
 
 univInt :: SmtDeclaration
 univInt = SmtVariable { name       = "univInt"
                       , sort       = Set (Tuple [uninterpretedUInt])
                       , isOriginal = False
+                      , arguments  = []
                       }
+
+intValue :: SmtDeclaration
+intValue = SmtVariable { name       = "intValue"
+                       , sort       = SmtInt
+                       , isOriginal = False
+                       , arguments  = [uninterpretedUInt]
+                       }
 
 smtType :: SmtExpr -> Sort
 smtType (SmtIntConstant  _               ) = SmtInt

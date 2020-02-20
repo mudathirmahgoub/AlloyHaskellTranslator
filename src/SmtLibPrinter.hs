@@ -24,7 +24,7 @@ printSmtLibScript RootEnv {..} =
     ++ (concatMap printSmtLibAssert assertions)
     ++ "(check-sat)\n"
     ++ "(get-model)\n"
-printSmtLibScript Env{..} = printSmtLibScript parent
+printSmtLibScript Env {..} = printSmtLibScript parent
 
 declareSmtLibSort :: Sort -> String
 declareSmtLibSort (UninterpretedSort x y) =
@@ -32,12 +32,21 @@ declareSmtLibSort (UninterpretedSort x y) =
 declareSmtLibSort _ = error ("Invalid sort  declaration")
 
 declareSmtLibConstants :: SmtDeclaration -> String
-declareSmtLibConstants SmtVariable {..} =
-  "(declare-const "
-    ++ (printVariableName SmtVariable { .. })
-    ++ " "
-    ++ (printSmtLibSort sort)
-    ++ " ) \n"
+declareSmtLibConstants SmtVariable {..} = case arguments of
+  [] ->
+    "(declare-const "
+      ++ (printVariableName SmtVariable { .. })
+      ++ " "
+      ++ (printSmtLibSort sort)
+      ++ ") \n"
+  xs ->
+    "(declare-fun "
+      ++ (printVariableName SmtVariable { .. })
+      ++ " ("
+      ++ (concatMap (\s -> (printSmtLibSort s) ++ " ") xs)
+      ++ ") "
+      ++ (printSmtLibSort sort)
+      ++ ") \n"
 declareSmtLibConstants _ = error "Not a constant"
 
 printSmtLibSort :: Sort -> String

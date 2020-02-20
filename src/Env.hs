@@ -33,7 +33,7 @@ getDeclaration env x = case env of
 containsDeclaration :: Env -> String -> Bool
 containsDeclaration RootEnv {..} x =
   any (\declaration -> matchName declaration x) declarations
-containsDeclaration Env{..} x = containsDeclaration parent x
+containsDeclaration Env {..} x = containsDeclaration parent x
 
 matchName :: SmtDeclaration -> String -> Bool
 matchName SmtVariable {..} x = x == name
@@ -90,7 +90,7 @@ second (_, y) = y
 
 emptyRootEnv :: Env
 emptyRootEnv = RootEnv { sorts        = [uninterpretedAtom, uninterpretedUInt]
-                       , declarations = []
+                       , declarations = [univAtom, univInt, none, intValue]
                        , assertions   = []
                        }
 
