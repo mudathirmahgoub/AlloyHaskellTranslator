@@ -721,8 +721,48 @@ translateCardinalityComparison (Env {..}) op setExpr n = case op of
     SmtBinary Union (SmtUnary Singleton (SmtVar x)) (generateSet xs)
 
 translateArithmetic :: (Env, AlloyExpr) -> (Env, SmtExpr)
-translateArithmetic (env, (AlloyBinary op x y)) =
-  error (show (AlloyBinary op x y))
+translateArithmetic (env, (AlloyBinary op a b)) = (env3, cExpr)
+  where 
+    (env1, aExpr) = translate (env, a)
+    (env2, bExpr) = translate (env1, b)
+    cVar = SmtVariable "c" (Set (Tuple [uninterpretedUInt])) False []
+    cExpr = SmtVar cVar
+    xVar = SmtVariable "x" uninterpretedUInt False []
+    yVar = SmtVariable "y" uninterpretedUInt False []
+    zVar = SmtVariable "z" uninterpretedUInt False []
+    xTuple = SmtMultiArity MkTuple [SmtVar xVar]
+    yTuple = SmtMultiArity MkTuple [SmtVar yVar]
+    zTuple = SmtMultiArity MkTuple [SmtVar zVar]
+    xValue = SmtCall intValue [SmtVar xVar]
+    yValue = SmtCall intValue [SmtVar yVar]
+    zValue = SmtCall intValue [SmtVar zVar]    
+    xyOperation = SmtBinary smtOp xValue yValue        
+    equal = SmtBinary Eq xyOperation zValue
+    xMember = SmtBinary Member xTuple aExpr
+    yMember = SmtBinary Member yTuple bExpr
+    zMember = SmtBinary Member zTuple cExpr    
+    -- for all z : uninterpretedInt. x in Result implies
+    -- exists x, y :uninterpretedInt. x in A and y in B and (x, y, z) in operation
+    and1 = SmtMultiArity And [xMember, yMember, equal]
+    exists1 = SmtQt Exists [xVar, yVar] and1
+    implies1 = SmtBinary Implies zMember exists1
+    axiom1 = SmtQt ForAll [zVar] implies1
+    -- for all x, y : uninterpretedInt. x in A and y in B implies
+    -- exists z :uninterpretedInt. x in Result and (x, y, z) in operation
+    and2 = SmtMultiArity And [zMember, equal]
+    exists2 = SmtQt Exists [zVar] and2
+    implies2 = SmtBinary Implies zMember exists2
+    axiom2 = SmtQt ForAll [xVar, yVar] implies2
+    axioms = SmtMultiArity And [axiom1, axiom2]
+    exists = SmtQt Exists [cVar] axioms
+    env3 = env2{auxiliaryFormula = Just(exists)}
+    smtOp = case op of
+      IPLUS -> Plus
+      IMINUS -> Minus 
+      DIV -> Divide 
+      MUL -> Multiply 
+      REM -> Mod 
+      _ -> error "Invalid arithmetic operator"
 
 translateIntConstant :: Env -> Int -> (Env, SmtExpr)
 translateIntConstant env n = (env3, smtExpr)
