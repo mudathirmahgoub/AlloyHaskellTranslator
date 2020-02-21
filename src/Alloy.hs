@@ -27,6 +27,8 @@ data Scope
     }
     deriving (Show, Eq)
 
+data AlloyFunction = AlloyFunction String [Decl] AlloyExpr deriving (Show, Eq)
+
 data AlloyVariable = AlloyVariable {alloyVarName :: String, alloyVarType ::AlloyType} deriving (Eq)
 instance Show AlloyVariable where
     show = alloyVarName
@@ -42,6 +44,7 @@ data AlloyExpr
     | AlloyQt AlloyQuantifier [Decl] AlloyExpr
     | AlloyLet AlloyVariable AlloyExpr AlloyExpr
     | AlloyList AlloyListOp [AlloyExpr]
+    | AlloyCall AlloyFunction [AlloyExpr]
     deriving (Show, Eq)
 
 data Decl = Decl

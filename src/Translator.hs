@@ -503,6 +503,7 @@ translate (env, AlloyList op xs) = case op of
   TOTALORDER -> undefined
   DISJOINT   -> undefined
 
+translate (env, (AlloyFunction String _ _) args) = case op of
 
 -- types
 translateType :: AlloyType -> Sort
