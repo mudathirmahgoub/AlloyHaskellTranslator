@@ -345,10 +345,10 @@ translate (_  , AlloyUnary CAST2INT _   ) = undefined
 translate (_  , AlloyUnary CAST2SIGINT _) = undefined
 translate (env, (AlloyUnary NOOP x)     ) = translate (env, x)
 -- binary expressions
-translate (env, (AlloyBinary ARROW x y) ) = (env, SmtBinary Product a b)
+translate (env, (AlloyBinary ARROW x y) ) = (env2, SmtBinary Product a b)
  where
-  (_, a) = translate (env, x)
-  (_, b) = translate (env, y)
+  (env1, a) = translate (env, x)
+  (env2, b) = translate (env1, y)
 
 translate (_  , (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
 translate (_  , (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
@@ -428,9 +428,9 @@ translate (env, (AlloyBinary EQUALS x y)) =
 translate (env, (AlloyBinary NOT_EQUALS x y)) =
   translateComparison (env, (AlloyBinary NOT_EQUALS x y))
 
-translate (_  , (AlloyBinary SHL _ _)) = undefined
-translate (_  , (AlloyBinary SHA _ _)) = undefined
-translate (_  , (AlloyBinary SHR _ _)) = undefined
+translate (_  , (AlloyBinary SHL _ _)) = error "not supported"
+translate (_  , (AlloyBinary SHA _ _)) = error "not supported"
+translate (_  , (AlloyBinary SHR _ _)) = error "not supported"
 
 -- Translation of 'x in y' where A = translate x, B = translate Y
 -- left sort | right sort | Translation
