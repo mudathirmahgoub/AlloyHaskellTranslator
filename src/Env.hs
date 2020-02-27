@@ -90,7 +90,7 @@ second (_, y) = y
 
 emptyRootEnv :: Env
 emptyRootEnv = RootEnv { sorts        = [uninterpretedAtom, uninterpretedUInt]
-                       , declarations = [univAtom, univInt, none, intValue]
+                       , declarations = [univAtom, univInt, none, intValue, idenAtom]
                        , assertions   = []
                        }
 

@@ -103,7 +103,7 @@ translateParent env SubsetSig {..} = addAssertion env assertion
   subsets   = SmtMultiArity And (map function parentVars)
   assertion = Assertion ("parents " ++ subsetLabel) subsets
 
-translateParent _ _ = undefined
+translateParent _ _ = error "not supported"
 
 
 translateDisjointChildren :: Env -> Sig -> Env
@@ -266,18 +266,38 @@ translateFact env (Fact name alloyExpr) = translateFormula env name alloyExpr
 addSpecialAssertions :: Env -> Env
 addSpecialAssertions env = env1
  where
-  env1                 = addAssertion env assertion
-  x                    = SmtVariable "x" uninterpretedUInt False []
-  y                    = SmtVariable "y" uninterpretedUInt False []
-  xValue               = SmtCall intValue [SmtVar x]
-  yValue               = SmtCall intValue [SmtVar y]
-  equalXY              = SmtBinary Eq (SmtVar x) (SmtVar y)
-  notEqualXY           = SmtUnary Not equalXY
-  equalXValueYValue    = SmtBinary Eq xValue yValue
-  notEqualXValueYValue = SmtUnary Not equalXValueYValue
-  implies              = SmtBinary Implies notEqualXY notEqualXValueYValue
-  oneToOne             = SmtQt ForAll [x, y] implies
-  assertion            = Assertion "intValue is injective" oneToOne
+  env1              = addAssertions env [intValueAssertion, idenAtomAssertion]
+  intValueAssertion = Assertion "intValue is injective" oneToOne
+   where
+    x                    = SmtVariable "x" uninterpretedUInt False []
+    y                    = SmtVariable "y" uninterpretedUInt False []
+    xValue               = SmtCall intValue [SmtVar x]
+    yValue               = SmtCall intValue [SmtVar y]
+    equalXY              = SmtBinary Eq (SmtVar x) (SmtVar y)
+    notEqualXY           = SmtUnary Not equalXY
+    equalXValueYValue    = SmtBinary Eq xValue yValue
+    notEqualXValueYValue = SmtUnary Not equalXValueYValue
+    implies              = SmtBinary Implies notEqualXY notEqualXValueYValue
+    oneToOne             = SmtQt ForAll [x, y] implies
+  idenAtomAssertion = Assertion "idenAtom" identity
+   where
+    x           = SmtVariable "x" uninterpretedAtom False []
+    y           = SmtVariable "y" uninterpretedAtom False []
+    xyTuple     = SmtMultiArity MkTuple [SmtVar x, SmtVar y]
+    equalXY     = SmtBinary Eq (SmtVar x) (SmtVar y)
+    memberXY    = SmtBinary Member xyTuple (SmtVar idenAtom)
+    equivalence = SmtBinary Eq memberXY equalXY
+    identity    = SmtQt ForAll [x, y] equivalence
+  idenIntAssertion = Assertion "idenInt" identity
+   where
+    x           = SmtVariable "x" uninterpretedUInt False []
+    y           = SmtVariable "y" uninterpretedUInt False []
+    xyTuple     = SmtMultiArity MkTuple [SmtVar x, SmtVar y]
+    equalXY     = SmtBinary Eq (SmtVar x) (SmtVar y)
+    memberXY    = SmtBinary Member xyTuple (SmtVar idenAtom)
+    equivalence = SmtBinary Eq memberXY equalXY
+    identity    = SmtQt ForAll [x, y] equivalence
+
 
 
 translateCommands :: Env -> [Command] -> Env
@@ -318,14 +338,22 @@ translate (env, (AlloyConstant c sig)) = case sig of
   _      -> error ("Constant " ++ (show c) ++ " is not supported")
 translate (env, AlloyVar x) = (env, SmtVar variable)
   where variable = getVariable env (alloyVarName x)
-translate (_  , (AlloyUnary SOMEOF _)   ) = undefined
-translate (_  , (AlloyUnary LONEOF _)   ) = undefined
+translate (env, (AlloyUnary SOMEOF x)   ) = translate (env, x)
+translate (env, (AlloyUnary LONEOF x)   ) = translate (env, x)
 translate (env, (AlloyUnary ONEOF x)    ) = translate (env, x)
-translate (_  , (AlloyUnary SETOF _)    ) = undefined
-translate (_  , (AlloyUnary EXACTLYOF _)) = undefined
-translate (env, (AlloyUnary NOT x)) =
-  (env, SmtUnary Not (second (translate (env, x))))
-translate (_  , (AlloyUnary NO _)) = undefined
+translate (env, (AlloyUnary SETOF x)    ) = translate (env, x)
+translate (_  , (AlloyUnary EXACTLYOF _)) = error "not supported"
+translate (env, (AlloyUnary NOT x)      ) = (env1, notExpr)
+ where
+  (env1, smtExpr) = translate (env, x)
+  notExpr         = SmtUnary Not smtExpr
+translate (env, (AlloyUnary NO x)) = (env1, smtExpr)
+ where
+  (env1, setExpr) = translate (env, x)
+  emptySet        = SmtUnary EmptySet (SortExpr (smtType setExpr))
+  isEmpty         = SmtBinary Eq setExpr emptySet
+  smtExpr         = translateAuxiliaryFormula env1 isEmpty
+
 translate (env, AlloyUnary SOME x) = (env, someExpr)
  where
   someExpr        = translateAuxiliaryFormula env1 notEmpty
@@ -334,11 +362,34 @@ translate (env, AlloyUnary SOME x) = (env, someExpr)
   equal           = SmtBinary Eq empty setExpr
   notEmpty        = SmtUnary Not equal
 
-translate (_, (AlloyUnary LONE _)     ) = undefined
-translate (_, (AlloyUnary ONE _)      ) = undefined
-translate (_, (AlloyUnary TRANSPOSE _)) = undefined
-translate (_, (AlloyUnary RCLOSURE _) ) = undefined
-translate (_, (AlloyUnary CLOSURE _)  ) = undefined
+translate (env, (AlloyUnary LONE x)) =
+  translate (env, AlloyBinary OR (AlloyUnary NO x) (AlloyUnary ONE x))
+translate (env, (AlloyUnary ONE x)) = (env, oneExpr)
+ where
+  oneExpr         = translateAuxiliaryFormula env1 existsX
+  (env1, setExpr) = translate (env, x)
+  elementSort     = getElementSort (smtType setExpr)
+  xVar            = SmtVariable "x" elementSort False []
+  xTuple          = SmtMultiArity MkTuple [SmtVar xVar]
+  singleton       = SmtUnary Singleton xTuple
+  isSingleton     = SmtBinary Eq setExpr singleton
+  existsX         = SmtQt Exists [xVar] isSingleton
+
+translate (env, (AlloyUnary TRANSPOSE x)) = (env1, transposeExpr)
+ where
+  (env1, setExpr) = translate (env, x)
+  transposeExpr   = SmtUnary Transpose setExpr
+translate (env, (AlloyUnary RCLOSURE x)) = (env1, smtExpr)
+ where
+  (env1, setExpr) = translate (env, x)
+  closure         = SmtUnary TClosure setExpr  
+  iden = if isInt x then idenAtom else idenAtom      
+  smtExpr = SmtBinary Union closure (SmtVar iden)
+  
+translate (env, (AlloyUnary CLOSURE x)) = (env1, smtExpr)
+ where
+  (env1, setExpr) = translate (env, x)
+  smtExpr         = SmtUnary TClosure setExpr
 translate (_, (AlloyUnary CARDINALITY _)) =
   error ("Cardinality not supported here.")
 translate (_  , AlloyUnary CAST2INT _   ) = undefined

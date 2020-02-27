@@ -87,6 +87,14 @@ univInt = SmtVariable { name       = "univInt"
                       , arguments  = []
                       }
 
+idenInt :: SmtDeclaration
+idenInt = SmtVariable
+    { name       = "idenInt"
+    , sort       = Set (Tuple [uninterpretedUInt, uninterpretedUInt])
+    , isOriginal = False
+    , arguments  = []
+    }
+
 intValue :: SmtDeclaration
 intValue = SmtVariable { name       = "intValue"
                        , sort       = SmtInt
