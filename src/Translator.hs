@@ -382,18 +382,18 @@ translate (env, (AlloyUnary TRANSPOSE x)) = (env1, transposeExpr)
 translate (env, (AlloyUnary RCLOSURE x)) = (env1, smtExpr)
  where
   (env1, setExpr) = translate (env, x)
-  closure         = SmtUnary TClosure setExpr  
-  iden = if isInt x then idenAtom else idenAtom      
-  smtExpr = SmtBinary Union closure (SmtVar iden)
-  
+  closure         = SmtUnary TClosure setExpr
+  iden            = if isInt x then idenAtom else idenAtom
+  smtExpr         = SmtBinary Union closure (SmtVar iden)
+
 translate (env, (AlloyUnary CLOSURE x)) = (env1, smtExpr)
  where
   (env1, setExpr) = translate (env, x)
   smtExpr         = SmtUnary TClosure setExpr
 translate (_, (AlloyUnary CARDINALITY _)) =
   error ("Cardinality not supported here.")
-translate (_  , AlloyUnary CAST2INT _   ) = undefined
-translate (_  , AlloyUnary CAST2SIGINT _) = undefined
+translate (env, AlloyUnary CAST2INT x   ) = translate (env, x)
+translate (env, AlloyUnary CAST2SIGINT x) = translate (env, x)
 translate (env, (AlloyUnary NOOP x)     ) = translate (env, x)
 -- binary expressions
 translate (env, (AlloyBinary ARROW x y) ) = (env2, SmtBinary Product a b)
@@ -422,16 +422,39 @@ translate (env, (AlloyBinary JOIN x y)            ) = (env2, smtExpr)
   (env1, smtX) = translate (env, x)
   (env2, smtY) = translate (env1, y)
   smtExpr      = SmtBinary Join (makeRelation smtX) (makeRelation smtY)
-translate (_, (AlloyBinary DOMAIN _ _)) = undefined
-translate (_, (AlloyBinary RANGE _ _) ) = undefined
-translate (env, (AlloyBinary INTERSECT x y)) =
-  ( env
-  , SmtBinary Intersection
-              (second (translate (env, x)))
-              (second (translate (env, y)))
-  )
-translate (_  , (AlloyBinary PLUSPLUS _ _)) = undefined
-translate (env, (AlloyBinary PLUS x y)    ) = (env2, smtExpr)
+translate (_  , (AlloyBinary DOMAIN _ _)   ) = undefined
+translate (_  , (AlloyBinary RANGE _ _)    ) = undefined
+translate (env, (AlloyBinary INTERSECT x y)) = (env2, smtExpr)
+ where
+  (env1, smtX) = translate (env, x)
+  (env2, smtY) = translate (env1, y)
+  smtExpr      = SmtBinary Intersection (makeRelation smtX) (makeRelation smtY)
+translate (env, (AlloyBinary PLUSPLUS x y)) = (env1, smtExpr)
+ where
+  (env1, smtX) = translate (env, x)
+  (env2, smtY) = translate (env1, y)
+  sigList      = case alloyType y of
+    Prod sigs -> sigs
+    t         -> error ("Unexpeted alloy type " ++ (show t))
+  smtExpr = case length sigList of
+    1 -> SmtBinary Union smtX smtY
+    n -> union
+     where
+      union        = SmtBinary Union difference smtY
+      difference   = SmtBinary SetMinus smtX intersection
+      intersection = SmtBinary Intersection product smtX
+      join         = reduce smtY sigList
+      product      = enlrage join sigList
+      reduce smtExpr (_ : []) = smtExpr
+      reduce smtExpr (sig : sigs) =
+        reduce (SmtBinary Join smtExpr (univ sig)) (sigs)
+      univ sig =
+        if isInt (Signature sig) then SmtVar univInt else SmtVar univAtom
+      enlrage smtExpr (_ : []) = smtExpr
+      enlrage smtExpr (sig : sigs) =
+        enlrage (SmtBinary Product smtExpr (univ sig)) (sigs)
+
+translate (env, (AlloyBinary PLUS x y)) = (env2, smtExpr)
  where
   (env1, smtX) = translate (env, x)
   (env2, smtY) = translate (env1, y)

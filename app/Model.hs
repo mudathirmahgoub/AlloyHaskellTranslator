@@ -6,19 +6,19 @@ a :: Sig
 a = aSig
  where
   aSig = PrimSig
-    { isAbstract       = True
+    { isAbstract       = False
     , children         = [a0, a1]
     , parent           = Univ
     , primLabel        = "A"
-    , primMultiplicity = ONEOF
+    , primMultiplicity = SOMEOF
     , primFacts        = [aFact1]
     , primFields       = [ Decl
                              { names     = [f1, f2]
                              , expr      = AlloyBinary ARROW
                                                        (Signature aSig)
                                                        (Signature aSig)
-                             , disjoint  = True
-                             , disjoint2 = True
+                             , disjoint  = False
+                             , disjoint2 = False
                              }
                          ]
     }
@@ -48,7 +48,7 @@ a0 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = a
              , primLabel        = "A0"
-             , primMultiplicity = ONEOF
+             , primMultiplicity = SOMEOF
              , primFacts        = []
              , primFields       = []
              }
@@ -57,14 +57,14 @@ a1 = PrimSig { isAbstract       = False
              , children         = []
              , parent           = a
              , primLabel        = "A1"
-             , primMultiplicity = LONEOF
+             , primMultiplicity = SOMEOF
              , primFacts        = []
              , primFields       = []
              }
 a2 :: Sig
 a2 = SubsetSig { parents            = [a0, a1]
                , subsetLabel        = "A2"
-               , subsetMultiplicity = LONEOF
+               , subsetMultiplicity = SOMEOF
                , subsetFacts        = []
                , subsetFields       = []
                }
@@ -76,16 +76,31 @@ b = PrimSig
   , primLabel        = "B"
   , primMultiplicity = SOMEOF
   , primFacts        = []
-  , primFields       = [ Decl { names     = [g1]
-                              , expr      = AlloyUnary ONEOF (Signature a)
-                              , disjoint  = True
-                              , disjoint2 = True
-                              }
-                       ]
+  , primFields = [ Decl { names     = [g1]
+                        , expr      = AlloyUnary SOMEOF (Signature a)
+                        , disjoint  = False
+                        , disjoint2 = False
+                        }
+                 , Decl { names     = [g2, g3, g4]
+                        , expr = AlloyBinary ARROW (Signature a) (Signature a)
+                        , disjoint  = False
+                        , disjoint2 = False
+                        }
+                 ]
   }
 
 g1 :: AlloyVariable
-g1 = AlloyVariable "A/g1" (Prod [a, a])
+g1 = AlloyVariable "B/g1" (Prod [a, a])
+
+g2 :: AlloyVariable
+g2 = AlloyVariable "B/g2" (Prod [a, a, a])
+
+g3 :: AlloyVariable
+g3 = AlloyVariable "B/g3" (Prod [a, a, a])
+
+g4 :: AlloyVariable
+g4 = AlloyVariable "B/g4" (Prod [a, a, a])
+
 
 b0 :: Sig
 b0 = PrimSig { isAbstract       = False
@@ -115,11 +130,6 @@ b2 = PrimSig { isAbstract       = False
              , primFacts        = []
              , primFields       = []
              }
-
-
-fact3 :: Fact
-fact3 =
-  Fact "fact3 b1 != b2" (AlloyBinary NOT_EQUALS (Signature b1) (Signature b2))
 
 fact4 :: Fact
 fact4 = Fact
@@ -169,12 +179,21 @@ zFacts =
                  (Signature z)
                  (AlloyCall integerPlus [Signature x, Signature y])
     )
+  , Fact
+    "g2 ++ g3 = g4"
+    (AlloyBinary EQUALS
+                 (AlloyBinary PLUSPLUS (AlloyVar g2) (AlloyVar g3))
+                 (AlloyVar g4)
+    )
+  , Fact "g3 != g4" (AlloyBinary NOT_EQUALS (AlloyVar g3) (AlloyVar g4))
+  , Fact "some g2"  (AlloyUnary SOME (AlloyVar g2))
+  , Fact "some g3"  (AlloyUnary SOME (AlloyVar g3))
   ]
 
 alloyModel :: AlloyModel
 alloyModel = AlloyModel
   { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2, x, y, z]
-  , facts      = [fact1, fact2, fact3, fact4] ++ zFacts
+  , facts      = [fact1, fact2, fact4] ++ zFacts
   , commands   = []
   }
 
