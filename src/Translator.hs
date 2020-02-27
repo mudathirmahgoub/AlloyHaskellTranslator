@@ -264,7 +264,21 @@ translateFact :: Env -> Fact -> Env
 translateFact env (Fact name alloyExpr) = translateFormula env name alloyExpr
 
 addSpecialAssertions :: Env -> Env
-addSpecialAssertions env = env -- ToDo: change this later
+addSpecialAssertions env = env1
+  where 
+    env1 = addAssertion env assertion
+    x = SmtVariable "x" uninterpretedUInt  False []
+    y = SmtVariable "y" uninterpretedUInt False []
+    xValue = SmtCall intValue [SmtVar x]
+    yValue = SmtCall intValue [SmtVar y]
+    equalXY = SmtBinary Eq (SmtVar x) (SmtVar y)
+    notEqualXY = SmtUnary Not equalXY
+    equalXValueYValue = SmtBinary Eq xValue yValue
+    notEqualXValueYValue = SmtUnary Not equalXValueYValue
+    implies = SmtBinary Implies notEqualXY notEqualXValueYValue
+    oneToOne = SmtQt ForAll [x, y] implies
+    assertion = Assertion "intValue is injective" oneToOne
+
 
 translateCommands :: Env -> [Command] -> Env
 translateCommands env xs = foldl translateCommand env xs
