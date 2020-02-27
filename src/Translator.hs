@@ -701,29 +701,45 @@ translateCardinalityComparison (Env {..}) op setExpr n = case op of
   Less -> case n of
     n | n <= 0    -> SmtBoolConstant False
     n | n == 1    -> isEmpty
-    n | otherwise -> SmtQt Exists vars (SmtBinary Subset setExpr cardinalitySet)
+    n | otherwise -> existsExpr
      where
       vars           = generateVars (n - 1)
       cardinalitySet = generateSet vars
+      subsetExpr     = SmtBinary Subset setExpr cardinalitySet
+      distinctExpr   = SmtMultiArity Distinct (map (\v -> SmtVar v) vars)
+      andExpr        = SmtMultiArity And [subsetExpr, distinctExpr]
+      existsExpr     = SmtQt Exists vars andExpr
   LTE -> case n of
     n | n <= -1   -> SmtBoolConstant False
     n | n == 0    -> isEmpty
-    n | otherwise -> SmtQt Exists vars (SmtBinary Subset setExpr cardinalitySet)
+    n | otherwise -> existsExpr
      where
       vars           = generateVars n
       cardinalitySet = generateSet vars
+      subsetExpr     = SmtBinary Subset setExpr cardinalitySet
+      distinctExpr   = SmtMultiArity Distinct (map (\v -> SmtVar v) vars)
+      andExpr        = SmtMultiArity And [subsetExpr, distinctExpr]
+      existsExpr     = SmtQt Exists vars andExpr
   Greater -> case n of
     n | n <= -1   -> SmtBoolConstant True
-    n | otherwise -> SmtQt Exists vars (SmtBinary Subset cardinalitySet setExpr)
+    n | otherwise -> existsExpr
      where
       vars           = generateVars (n + 1)
       cardinalitySet = generateSet vars
+      subsetExpr     = (SmtBinary Subset cardinalitySet setExpr)
+      distinctExpr   = SmtMultiArity Distinct (map (\v -> SmtVar v) vars)
+      andExpr        = SmtMultiArity And [subsetExpr, distinctExpr]
+      existsExpr     = SmtQt Exists vars andExpr
   GTE -> case n of
     n | n <= 0    -> SmtBoolConstant True
-    n | otherwise -> SmtQt Exists vars (SmtBinary Subset cardinalitySet setExpr)
+    n | otherwise -> existsExpr
      where
       vars           = generateVars n
       cardinalitySet = generateSet vars
+      subsetExpr     = (SmtBinary Subset cardinalitySet setExpr)
+      distinctExpr   = SmtMultiArity Distinct (map (\v -> SmtVar v) vars)
+      andExpr        = SmtMultiArity And [subsetExpr, distinctExpr]
+      existsExpr     = SmtQt Exists vars andExpr
   NOT_LT  -> translateCardinalityComparison Env { .. } GTE setExpr n
   NOT_LTE -> translateCardinalityComparison Env { .. } Greater setExpr n
   NOT_GT  -> translateCardinalityComparison Env { .. } LTE setExpr n
