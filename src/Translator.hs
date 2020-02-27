@@ -366,10 +366,11 @@ translate (_  , (AlloyBinary LONE_ARROW_SOME _ _) ) = undefined
 translate (_  , (AlloyBinary LONE_ARROW_ONE _ _)  ) = undefined
 translate (_  , (AlloyBinary LONE_ARROW_LONE _ _) ) = undefined
 translate (_  , (AlloyBinary ISSEQ_ARROW_LONE _ _)) = undefined
-translate (env, (AlloyBinary JOIN x y)) = (env, SmtBinary Join smtX smtY)
+translate (env, (AlloyBinary JOIN x y)            ) = (env2, smtExpr)
  where
-  smtX = makeRelation (second (translate (env, x)))
-  smtY = makeRelation (second (translate (env, y)))
+  (env1, smtX) = translate (env, x)
+  (env2, smtY) = translate (env1, y)
+  smtExpr      = SmtBinary Join (makeRelation smtX) (makeRelation smtY)
 translate (_, (AlloyBinary DOMAIN _ _)) = undefined
 translate (_, (AlloyBinary RANGE _ _) ) = undefined
 translate (env, (AlloyBinary INTERSECT x y)) =
@@ -378,19 +379,28 @@ translate (env, (AlloyBinary INTERSECT x y)) =
               (second (translate (env, x)))
               (second (translate (env, y)))
   )
-translate (_, (AlloyBinary PLUSPLUS _ _)) = undefined
-translate (env, (AlloyBinary PLUS x y)) =
-  ( env
-  , SmtBinary Union (second (translate (env, x))) (second (translate (env, y)))
-  )
+translate (_  , (AlloyBinary PLUSPLUS _ _)) = undefined
+translate (env, (AlloyBinary PLUS x y)    ) = (env2, smtExpr)
+ where
+  (env1, smtX) = translate (env, x)
+  (env2, smtY) = translate (env1, y)
+  smtExpr      = SmtBinary Union (makeRelation smtX) (makeRelation smtY)
 translate (env, (AlloyBinary IPLUS x y)) =
   translateArithmetic (env, (AlloyBinary IPLUS x y))
-translate (_, (AlloyBinary MINUS _ _) ) = undefined
-translate (_, (AlloyBinary IMINUS _ _)) = undefined
-translate (_, (AlloyBinary MUL _ _)   ) = undefined
-translate (_, (AlloyBinary DIV _ _)   ) = undefined
-translate (_, (AlloyBinary REM _ _)   ) = undefined
-translate (env, (AlloyBinary IMPLIES x y)) =
+translate (env, (AlloyBinary MINUS x y)) = (env2, smtExpr)
+ where
+  (env1, smtX) = translate (env, x)
+  (env2, smtY) = translate (env1, y)
+  smtExpr      = SmtBinary SetMinus (makeRelation smtX) (makeRelation smtY)
+translate (env, (AlloyBinary IMINUS x y)) =
+  translateArithmetic (env, (AlloyBinary IMINUS x y))
+translate (env, (AlloyBinary MUL x y)) =
+  translateArithmetic (env, (AlloyBinary MUL x y))
+translate (env, (AlloyBinary DIV x y)) =
+  translateArithmetic (env, (AlloyBinary DIV x y))
+translate (env, (AlloyBinary REM x y)) =
+  translateArithmetic (env, (AlloyBinary REM x y))
+translate (env, (AlloyBinary IMPLIES x y)) = -- ToDo: add auxiliary
   ( env
   , SmtBinary Implies
               (second (translate (env, x)))
