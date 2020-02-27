@@ -78,7 +78,7 @@ data AlloyQuantifier
     | Lone
     | One
     | Some
-    | Sum   
+    | Sum
     | Comprehension
     deriving (Show, Eq)
 

@@ -198,7 +198,7 @@ translateField sig env Decl {..} = env2
   multiplicityAssertion =
     Assertion ((show fieldVar) ++ " field multiplicity") smtMultiplicity
   noMuliplicity = removeMultiplicity expr
-  substitution  = substitute this (Signature sig) noMuliplicity
+  substitution  = substituteAlloyExpr this (Signature sig) noMuliplicity
   productExpr   = AlloyBinary ARROW (Signature sig) substitution
   subsetExpr    = AlloyBinary IN (Field Decl { .. }) productExpr
   env1 = translateFormula env ((show fieldVar) ++ " field subset") subsetExpr
@@ -369,7 +369,8 @@ translate (env, (AlloyBinary PLUS x y)) =
   ( env
   , SmtBinary Union (second (translate (env, x))) (second (translate (env, y)))
   )
-translate (_, (AlloyBinary IPLUS _ _) ) = undefined
+translate (env, (AlloyBinary IPLUS x y)) =
+  translateArithmetic (env, (AlloyBinary IPLUS x y))
 translate (_, (AlloyBinary MINUS _ _) ) = undefined
 translate (_, (AlloyBinary IMINUS _ _)) = undefined
 translate (_, (AlloyBinary MUL _ _)   ) = undefined
@@ -503,7 +504,15 @@ translate (env, AlloyList op xs) = case op of
   TOTALORDER -> undefined
   DISJOINT   -> undefined
 
-translate (env, (AlloyFunction String _ _) args) = case op of
+translate (env, AlloyCall (AlloyFunction _ args body) alloyExprs) = translate
+  (env, substitution)
+ where
+  argVars      = getDeclsVariables args
+  argExprMap   = zipWith (,) argVars alloyExprs
+  substitution = substituteArgs body argExprMap
+  substituteArgs b [] = b
+  substituteArgs b ((var, expr) : xs) =
+    substituteArgs (substituteAlloyExpr var expr b) xs
 
 -- types
 translateType :: AlloyType -> Sort
@@ -722,58 +731,65 @@ translateCardinalityComparison (Env {..}) op setExpr n = case op of
 
 translateArithmetic :: (Env, AlloyExpr) -> (Env, SmtExpr)
 translateArithmetic (env, (AlloyBinary op a b)) = (env3, cExpr)
-  where 
-    (env1, aExpr) = translate (env, a)
-    (env2, bExpr) = translate (env1, b)
-    cVar = SmtVariable "c" (Set (Tuple [uninterpretedUInt])) False []
-    cExpr = SmtVar cVar
-    xVar = SmtVariable "x" uninterpretedUInt False []
-    yVar = SmtVariable "y" uninterpretedUInt False []
-    zVar = SmtVariable "z" uninterpretedUInt False []
-    xTuple = SmtMultiArity MkTuple [SmtVar xVar]
-    yTuple = SmtMultiArity MkTuple [SmtVar yVar]
-    zTuple = SmtMultiArity MkTuple [SmtVar zVar]
-    xValue = SmtCall intValue [SmtVar xVar]
-    yValue = SmtCall intValue [SmtVar yVar]
-    zValue = SmtCall intValue [SmtVar zVar]    
-    xyOperation = SmtBinary smtOp xValue yValue        
-    equal = SmtBinary Eq xyOperation zValue
-    xMember = SmtBinary Member xTuple aExpr
-    yMember = SmtBinary Member yTuple bExpr
-    zMember = SmtBinary Member zTuple cExpr    
-    -- for all z : uninterpretedInt. x in Result implies
-    -- exists x, y :uninterpretedInt. x in A and y in B and (x, y, z) in operation
-    and1 = SmtMultiArity And [xMember, yMember, equal]
-    exists1 = SmtQt Exists [xVar, yVar] and1
-    implies1 = SmtBinary Implies zMember exists1
-    axiom1 = SmtQt ForAll [zVar] implies1
-    -- for all x, y : uninterpretedInt. x in A and y in B implies
-    -- exists z :uninterpretedInt. x in Result and (x, y, z) in operation
-    and2 = SmtMultiArity And [zMember, equal]
-    exists2 = SmtQt Exists [zVar] and2
-    implies2 = SmtBinary Implies zMember exists2
-    axiom2 = SmtQt ForAll [xVar, yVar] implies2
-    axioms = SmtMultiArity And [axiom1, axiom2]
-    exists = SmtQt Exists [cVar] axioms
-    env3 = env2{auxiliaryFormula = Just(exists)}
-    smtOp = case op of
-      IPLUS -> Plus
-      IMINUS -> Minus 
-      DIV -> Divide 
-      MUL -> Multiply 
-      REM -> Mod 
-      _ -> error "Invalid arithmetic operator"
+ where
+  (env1, aExpr) = translate (env, a)
+  (env2, bExpr) = translate (env1, b)
+  cVar          = SmtVariable "c" (Set (Tuple [uninterpretedUInt])) False []
+  cExpr         = SmtVar cVar
+  xVar          = SmtVariable "x" uninterpretedUInt False []
+  yVar          = SmtVariable "y" uninterpretedUInt False []
+  zVar          = SmtVariable "z" uninterpretedUInt False []
+  xTuple        = SmtMultiArity MkTuple [SmtVar xVar]
+  yTuple        = SmtMultiArity MkTuple [SmtVar yVar]
+  zTuple        = SmtMultiArity MkTuple [SmtVar zVar]
+  xValue        = SmtCall intValue [SmtVar xVar]
+  yValue        = SmtCall intValue [SmtVar yVar]
+  zValue        = SmtCall intValue [SmtVar zVar]
+  xyOperation   = SmtBinary smtOp xValue yValue
+  equal         = SmtBinary Eq xyOperation zValue
+  xMember       = SmtBinary Member xTuple aExpr
+  yMember       = SmtBinary Member yTuple bExpr
+  zMember       = SmtBinary Member zTuple cExpr
+  xyMembers     = SmtMultiArity And [xMember, yMember]
+
+  -- for all z : uninterpretedInt. x in Result implies
+  -- exists x, y :uninterpretedInt. x in A and y in B and (x, y, z) in operation
+  and1          = SmtMultiArity And [xMember, yMember, equal]
+  exists1       = SmtQt Exists [xVar, yVar] and1
+  implies1      = SmtBinary Implies zMember exists1
+  axiom1        = SmtQt ForAll [zVar] implies1
+  -- for all x, y : uninterpretedInt. x in A and y in B implies
+  -- exists z :uninterpretedInt. x in Result and (x, y, z) in operation
+  and2          = SmtMultiArity And [zMember, equal]
+  exists2       = SmtQt Exists [zVar] and2
+  implies2      = SmtBinary Implies xyMembers exists2
+  axiom2        = SmtQt ForAll [xVar, yVar] implies2
+  axioms        = SmtMultiArity And [axiom1, axiom2]
+  exists        = SmtQt Exists [cVar] axioms
+  env3          = env2 { auxiliaryFormula = Just (exists) }
+  smtOp         = case op of
+    IPLUS  -> Plus
+    IMINUS -> Minus
+    DIV    -> Divide
+    MUL    -> Multiply
+    REM    -> Mod
+    _      -> error "Invalid arithmetic operator"
 
 translateIntConstant :: Env -> Int -> (Env, SmtExpr)
 translateIntConstant env n = (env3, smtExpr)
  where
-  env3 = if containsDeclaration env varName
-    then env
-    else env2
-      where 
-        env1 = addDeclaration env (SmtVariable varName uninterpretedUInt False [])
-        env2 = addAssertion env1 assertion
-        assertion = Assertion (show n) (SmtBinary Eq callExpr (SmtIntConstant n))
-        callExpr = SmtCall intValue [smtExpr]
-  varName = "u." ++ (show n)  
+  env3 = if containsDeclaration env varName then env else env2
+   where
+    env1 = addDeclaration env (SmtVariable varName uninterpretedUInt False [])
+    env2      = addAssertion env1 assertion
+    assertion = Assertion (show n) (SmtBinary Eq callExpr (SmtIntConstant n))
+    callExpr  = SmtCall intValue [smtExpr]
+  varName = "u." ++ (show n)
   smtExpr = SmtVar (getDeclaration env3 varName)
+
+-- translateAlloyExprs :: Env -> [AlloyExpr] -> (Env, [SmtExpr])
+-- translateAlloyExprs env [] = (env, [])
+-- translateArguments env (x : xs) = (env2, smtExpr : smtExprs)
+--  where
+--   (env1, smtExpr ) = translate (env, x)
+--   (env2, smtExprs) = translateAlloyExprs env xs

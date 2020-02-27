@@ -36,7 +36,6 @@ fact2 = Fact
   (AlloyBinary Greater
                (AlloyUnary CARDINALITY (Signature a))
                (AlloyConstant "3" SigInt)
-               
   )
 
 f1 :: AlloyVariable
@@ -123,13 +122,59 @@ fact3 =
   Fact "fact3 b1 != b2" (AlloyBinary NOT_EQUALS (Signature b1) (Signature b2))
 
 fact4 :: Fact
-fact4 =
-  Fact "fact4 1 = 1" (AlloyBinary EQUALS (AlloyConstant "1" SigInt) (AlloyConstant "1" SigInt))
+fact4 = Fact
+  "fact4 1 = 1"
+  (AlloyBinary EQUALS (AlloyConstant "1" SigInt) (AlloyConstant "1" SigInt))
+
+-- integer signatures
+x :: Sig
+x = SubsetSig { parents            = [SigInt]
+              , subsetLabel        = "X"
+              , subsetMultiplicity = SOMEOF
+              , subsetFacts        = []
+              , subsetFields       = []
+              }
+y :: Sig
+y = SubsetSig { parents            = [SigInt]
+              , subsetLabel        = "Y"
+              , subsetMultiplicity = SOMEOF
+              , subsetFacts        = []
+              , subsetFields       = []
+              }
+z :: Sig
+z = SubsetSig { parents            = [SigInt]
+              , subsetLabel        = "Z"
+              , subsetMultiplicity = SOMEOF
+              , subsetFacts        = []
+              , subsetFields       = []
+              }
+
+zFacts :: [Fact]
+zFacts =
+  [ Fact
+    "#X = 2"
+    (AlloyBinary EQUALS
+                 (AlloyUnary CARDINALITY (Signature x))
+                 (AlloyConstant "2" SigInt)
+    )
+  , Fact
+    "#Y = 2"
+    (AlloyBinary EQUALS
+                 (AlloyUnary CARDINALITY (Signature y))
+                 (AlloyConstant "2" SigInt)
+    )
+  , Fact
+    "Z = X + Y"
+    (AlloyBinary EQUALS
+                 (Signature z)
+                 (AlloyCall integerPlus [Signature x, Signature y])
+    )
+  ]
 
 alloyModel :: AlloyModel
 alloyModel = AlloyModel
-  { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2]
-  , facts      = [fact1, fact2, fact3, fact4]
+  { signatures = [Univ, SigInt, None, a, a0, a1, a2, b, b0, b1, b2, x, y, z]
+  , facts      = [fact1, fact2, fact3, fact4] ++ zFacts
   , commands   = []
   }
 

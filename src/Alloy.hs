@@ -179,60 +179,61 @@ alloyType (AlloyBinary ARROW x y   ) = Prod (xs ++ ys)
   where
     Prod xs = alloyType x
     Prod ys = alloyType y
-alloyType (AlloyBinary ANY_ARROW_SOME   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ANY_ARROW_ONE    x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ANY_ARROW_LONE   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary SOME_ARROW_ANY   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary SOME_ARROW_SOME  x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary SOME_ARROW_ONE   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary SOME_ARROW_LONE  x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ONE_ARROW_ANY    x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ONE_ARROW_SOME   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ONE_ARROW_ONE    x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ONE_ARROW_LONE   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary LONE_ARROW_ANY   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary LONE_ARROW_SOME  x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary LONE_ARROW_ONE   x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary LONE_ARROW_LONE  x y) = alloyType (AlloyBinary ARROW x y)
-alloyType (AlloyBinary ISSEQ_ARROW_LONE _ _) = undefined
+alloyType (AlloyBinary ANY_ARROW_SOME x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ANY_ARROW_ONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ANY_ARROW_LONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_ANY x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_SOME x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_ONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary SOME_ARROW_LONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_ANY x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_SOME x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_ONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ONE_ARROW_LONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_ANY x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_SOME x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_ONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary LONE_ARROW_LONE x y) = alloyType (AlloyBinary ARROW x y)
+alloyType (AlloyBinary ISSEQ_ARROW_LONE _ _    ) = undefined
 alloyType (AlloyBinary JOIN x y) = alloyJoinType (alloyType x) (alloyType y)
-alloyType (AlloyBinary DOMAIN           _ y) = alloyType y
-alloyType (AlloyBinary RANGE            _ y) = alloyType y
-alloyType (AlloyBinary INTERSECT        x _) = alloyType x
-alloyType (AlloyBinary PLUSPLUS         x _) = alloyType x
-alloyType (AlloyBinary PLUS             x _) = alloyType x
-alloyType (AlloyBinary IPLUS            _ _) = Prod [SigInt]
-alloyType (AlloyBinary MINUS            x _) = alloyType x
-alloyType (AlloyBinary IMINUS           _ _) = Prod [SigInt]
-alloyType (AlloyBinary MUL              _ _) = Prod [SigInt]
-alloyType (AlloyBinary DIV              _ _) = Prod [SigInt]
-alloyType (AlloyBinary REM              _ _) = Prod [SigInt]
-alloyType (AlloyBinary EQUALS           _ _) = AlloyBool
-alloyType (AlloyBinary NOT_EQUALS       _ _) = AlloyBool
-alloyType (AlloyBinary IMPLIES          _ _) = AlloyBool
-alloyType (AlloyBinary Less             _ _) = AlloyBool
-alloyType (AlloyBinary LTE              _ _) = AlloyBool
-alloyType (AlloyBinary Greater          _ _) = AlloyBool
-alloyType (AlloyBinary GTE              _ _) = AlloyBool
-alloyType (AlloyBinary NOT_LT           _ _) = AlloyBool
-alloyType (AlloyBinary NOT_LTE          _ _) = AlloyBool
-alloyType (AlloyBinary NOT_GT           _ _) = AlloyBool
-alloyType (AlloyBinary NOT_GTE          _ _) = AlloyBool
-alloyType (AlloyBinary SHL              _ _) = undefined
-alloyType (AlloyBinary SHA              _ _) = undefined
-alloyType (AlloyBinary SHR              _ _) = undefined
-alloyType (AlloyBinary IN               _ _) = AlloyBool
-alloyType (AlloyBinary NOT_IN           _ _) = AlloyBool
-alloyType (AlloyBinary AND              _ _) = AlloyBool
-alloyType (AlloyBinary OR               _ _) = AlloyBool
-alloyType (AlloyBinary IFF              _ _) = AlloyBool
-alloyType (AlloyITE    _                x _) = alloyType x
-alloyType (AlloyQt     _                _ _) = AlloyBool
-alloyType (AlloyLet    _                _ x) = alloyType x
-alloyType (AlloyList DISJOINT   _          ) = undefined
-alloyType (AlloyList TOTALORDER _          ) = undefined
-alloyType (AlloyList ListAND    _          ) = AlloyBool
-alloyType (AlloyList ListOR     _          ) = AlloyBool
+alloyType (AlloyBinary DOMAIN           _ y    ) = alloyType y
+alloyType (AlloyBinary RANGE            _ y    ) = alloyType y
+alloyType (AlloyBinary INTERSECT        x _    ) = alloyType x
+alloyType (AlloyBinary PLUSPLUS         x _    ) = alloyType x
+alloyType (AlloyBinary PLUS             x _    ) = alloyType x
+alloyType (AlloyBinary IPLUS            _ _    ) = Prod [SigInt]
+alloyType (AlloyBinary MINUS            x _    ) = alloyType x
+alloyType (AlloyBinary IMINUS           _ _    ) = Prod [SigInt]
+alloyType (AlloyBinary MUL              _ _    ) = Prod [SigInt]
+alloyType (AlloyBinary DIV              _ _    ) = Prod [SigInt]
+alloyType (AlloyBinary REM              _ _    ) = Prod [SigInt]
+alloyType (AlloyBinary EQUALS           _ _    ) = AlloyBool
+alloyType (AlloyBinary NOT_EQUALS       _ _    ) = AlloyBool
+alloyType (AlloyBinary IMPLIES          _ _    ) = AlloyBool
+alloyType (AlloyBinary Less             _ _    ) = AlloyBool
+alloyType (AlloyBinary LTE              _ _    ) = AlloyBool
+alloyType (AlloyBinary Greater          _ _    ) = AlloyBool
+alloyType (AlloyBinary GTE              _ _    ) = AlloyBool
+alloyType (AlloyBinary NOT_LT           _ _    ) = AlloyBool
+alloyType (AlloyBinary NOT_LTE          _ _    ) = AlloyBool
+alloyType (AlloyBinary NOT_GT           _ _    ) = AlloyBool
+alloyType (AlloyBinary NOT_GTE          _ _    ) = AlloyBool
+alloyType (AlloyBinary SHL              _ _    ) = undefined
+alloyType (AlloyBinary SHA              _ _    ) = undefined
+alloyType (AlloyBinary SHR              _ _    ) = undefined
+alloyType (AlloyBinary IN               _ _    ) = AlloyBool
+alloyType (AlloyBinary NOT_IN           _ _    ) = AlloyBool
+alloyType (AlloyBinary AND              _ _    ) = AlloyBool
+alloyType (AlloyBinary OR               _ _    ) = AlloyBool
+alloyType (AlloyBinary IFF              _ _    ) = AlloyBool
+alloyType (AlloyITE    _                x _    ) = alloyType x
+alloyType (AlloyQt     _                _ _    ) = AlloyBool
+alloyType (AlloyLet    _                _ x    ) = alloyType x
+alloyType (AlloyList DISJOINT                 _) = undefined
+alloyType (AlloyList TOTALORDER               _) = undefined
+alloyType (AlloyList ListAND                  _) = AlloyBool
+alloyType (AlloyList ListOR                   _) = AlloyBool
+alloyType (AlloyCall (AlloyFunction _ _ body) _) = alloyType body
 
 
 alloyJoinType :: AlloyType -> AlloyType -> AlloyType
@@ -278,21 +279,23 @@ removeMultiplicity (AlloyBinary op x y ) = case op of
 removeMultiplicity x = x
 
 
---                old       -> new       -> body
-substitute :: AlloyVariable -> AlloyExpr -> AlloyExpr -> AlloyExpr
-substitute _ _   (AlloyConstant x y) = (AlloyConstant x y)
-substitute x new (AlloyVar  y      ) = if x == y then new else (AlloyVar y)
-substitute _ _   (Signature x      ) = (Signature x)
-substitute _ _   (Field     x      ) = (Field x)
-substitute x new (AlloyUnary op y  ) = AlloyUnary op (substitute x new y)
-substitute x new (AlloyBinary op y z) =
-    AlloyBinary op (substitute x new y) (substitute x new z)
-substitute x new (AlloyITE a b c) = (AlloyITE u v w)
+--                     old           -> new       -> body
+substituteAlloyExpr :: AlloyVariable -> AlloyExpr -> AlloyExpr -> AlloyExpr
+substituteAlloyExpr _ _   (AlloyConstant x y) = (AlloyConstant x y)
+substituteAlloyExpr x new (AlloyVar y) = if x == y then new else (AlloyVar y)
+substituteAlloyExpr _ _   (Signature x      ) = (Signature x)
+substituteAlloyExpr _ _   (Field     x      ) = (Field x)
+substituteAlloyExpr x new (AlloyUnary op y) =
+    AlloyUnary op (substituteAlloyExpr x new y)
+substituteAlloyExpr x new (AlloyBinary op y z) =
+    AlloyBinary op (substituteAlloyExpr x new y) (substituteAlloyExpr x new z)
+substituteAlloyExpr x new (AlloyITE a b c) = (AlloyITE u v w)
   where
-    u = (substitute x new a)
-    v = (substitute x new b)
-    w = (substitute x new c)
-substitute _ _ x = error ((show x) ++ "not implemented")
+    u = (substituteAlloyExpr x new a)
+    v = (substituteAlloyExpr x new b)
+    w = (substituteAlloyExpr x new c)
+substituteAlloyExpr _ _ x = error ((show x) ++ "not implemented")
+
 
 hasFreeVariable :: AlloyVariable -> AlloyExpr -> Bool
 hasFreeVariable x (AlloyVar  y      ) = x == y
@@ -320,3 +323,66 @@ getFieldName :: Decl -> String
 getFieldName Decl {..} = case names of
     (AlloyVariable x _ : []) -> x
     x                        -> error ("Expect singleton. Found " ++ (show x))
+
+
+-- special predefined functions
+
+integerPlus :: AlloyFunction
+integerPlus = AlloyFunction "integer/plus" [decl] body
+  where
+    decl = Decl { names     = [n1, n2]
+                , expr      = Signature SigInt
+                , disjoint  = False
+                , disjoint2 = False
+                }
+    n1   = AlloyVariable "n1" (Prod [SigInt])
+    n2   = AlloyVariable "n2" (Prod [SigInt])
+    body = AlloyBinary IPLUS (AlloyVar n1) (AlloyVar n2)
+
+integerMinus :: AlloyFunction
+integerMinus = AlloyFunction "integer/minus" [decl] body
+  where
+    decl = Decl { names     = [n1, n2]
+                , expr      = Signature SigInt
+                , disjoint  = False
+                , disjoint2 = False
+                }
+    n1   = AlloyVariable "n1" (Prod [SigInt])
+    n2   = AlloyVariable "n2" (Prod [SigInt])
+    body = AlloyBinary IMINUS (AlloyVar n1) (AlloyVar n2)
+
+integerMul :: AlloyFunction
+integerMul = AlloyFunction "integer/mul" [decl] body
+  where
+    decl = Decl { names     = [n1, n2]
+                , expr      = Signature SigInt
+                , disjoint  = False
+                , disjoint2 = False
+                }
+    n1   = AlloyVariable "n1" (Prod [SigInt])
+    n2   = AlloyVariable "n2" (Prod [SigInt])
+    body = AlloyBinary MUL (AlloyVar n1) (AlloyVar n2)
+
+integerDiv :: AlloyFunction
+integerDiv = AlloyFunction "integer/div" [decl] body
+  where
+    decl = Decl { names     = [n1, n2]
+                , expr      = Signature SigInt
+                , disjoint  = False
+                , disjoint2 = False
+                }
+    n1   = AlloyVariable "n1" (Prod [SigInt])
+    n2   = AlloyVariable "n2" (Prod [SigInt])
+    body = AlloyBinary DIV (AlloyVar n1) (AlloyVar n2)
+
+integerRem :: AlloyFunction
+integerRem = AlloyFunction "integer/Rem" [decl] body
+  where
+    decl = Decl { names     = [n1, n2]
+                , expr      = Signature SigInt
+                , disjoint  = False
+                , disjoint2 = False
+                }
+    n1   = AlloyVariable "n1" (Prod [SigInt])
+    n2   = AlloyVariable "n2" (Prod [SigInt])
+    body = AlloyBinary REM (AlloyVar n1) (AlloyVar n2)
