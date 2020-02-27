@@ -707,10 +707,14 @@ translateCardinalityComparison (Env {..}) op setExpr n = case op of
   EQUALS  -> case n of
     n | n <= -1   -> SmtBoolConstant False
     n | n == 0    -> isEmpty
-    n | otherwise -> SmtQt Exists vars (SmtBinary Eq setExpr cardinalitySet)
+    n | otherwise -> existsExpr
      where
-      vars           = generateVars (n - 1)
+      vars           = generateVars n
       cardinalitySet = generateSet vars
+      andExpr        = SmtMultiArity And [equalExpr, distinctExpr]
+      equalExpr      = SmtBinary Eq setExpr cardinalitySet
+      distinctExpr   = SmtMultiArity Distinct (map (\v -> SmtVar v) vars)
+      existsExpr     = SmtQt Exists vars andExpr
   NOT_EQUALS ->
     SmtUnary Not (translateCardinalityComparison Env { .. } EQUALS setExpr n)
   _ -> error "Invalid comparision operator"

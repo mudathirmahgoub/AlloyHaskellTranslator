@@ -103,7 +103,7 @@ printSmtLibExpr (SmtMultiArity op xs) =
   "("
     ++ (printSmtLibMultiArityOp op)
     ++ " "
-    ++ (concatMap printSmtLibExpr xs)
+    ++ (concatMap (\x -> (printSmtLibExpr x) ++ " ") xs)
     ++ ")"
 printSmtLibExpr (SmtCall f args) = 
   "("
