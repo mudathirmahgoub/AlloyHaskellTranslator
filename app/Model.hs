@@ -82,7 +82,7 @@ b = PrimSig
                         , disjoint2 = False
                         }
                  , Decl { names     = [g2, g3, g4]
-                        , expr = AlloyBinary ARROW (Signature a) (Signature a)
+                        , expr = AlloyBinary ANY_ARROW_SOME (Signature a) (Signature a)
                         , disjoint  = False
                         , disjoint2 = False
                         }

@@ -244,3 +244,13 @@ makeRelation x = case smtType x of
     UninterpretedSort _ _ -> SmtUnary Singleton (SmtMultiArity MkTuple [x])
     Tuple _               -> SmtUnary Singleton x
     _                     -> error ((show x) ++ " is not a relation")
+
+
+concatSmtTuples :: SmtExpr -> SmtExpr -> SmtExpr
+concatSmtTuples x y = case (smtType x, smtType y) of
+    (Tuple xs, Tuple ys) -> SmtMultiArity MkTuple (xTuple ++ yTuple)
+        where         
+            xTuple = map (\n -> SmtBinary TupSel (SmtIntConstant n) x) [0.. ((length xs) - 1)]
+            yTuple = map (\n -> SmtBinary TupSel (SmtIntConstant n) x) [0 .. ((length xs) - 1)]
+    (_       , _       ) -> error "Expected tuples"
+    

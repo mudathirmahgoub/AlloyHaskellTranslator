@@ -2,6 +2,7 @@
 
 module Env where
 
+import           SmtOperators
 import           Smt
 
 data Env = RootEnv
@@ -89,11 +90,25 @@ second :: (a, b) -> b
 second (_, y) = y
 
 emptyRootEnv :: Env
-emptyRootEnv = RootEnv { sorts        = [uninterpretedAtom, uninterpretedUInt]
-                       , declarations = [univAtom, univInt, none, intValue, idenAtom]
-                       , assertions   = []
-                       }
+emptyRootEnv = RootEnv
+  { sorts        = [uninterpretedAtom, uninterpretedUInt]
+  , declarations = [univAtom, univInt, none, intValue, idenAtom]
+  , assertions   = []
+  }
 
 emptyEnv :: Env
 emptyEnv =
   Env { auxiliaryFormula = Nothing, variablesMap = [], parent = emptyRootEnv }
+
+addAuxiliaryFormula :: Env -> SmtExpr -> Env
+addAuxiliaryFormula (Env f m p) (SmtQt Exists newVars newBody) = case f of
+  Nothing -> Env (Just (SmtQt Exists newVars newBody)) m p
+  Just (SmtQt Exists oldVars oldBody) -> Env (Just newF) m p
+   where
+    newF =
+      SmtQt Exists (oldVars ++ newVars) (SmtMultiArity And [oldBody, newBody])
+  _ -> error "Only an existentional expression can be an auxiliary formula"
+
+addAuxiliaryFormula RootEnv {..} _ =
+  error "Auxiliary formulas are only for nested environments"
+addAuxiliaryFormula _ f = error ("Unexpected formula" ++ (show f))

@@ -401,7 +401,34 @@ translate (env, (AlloyBinary ARROW x y) ) = (env2, SmtBinary Product a b)
   (env1, a) = translate (env, x)
   (env2, b) = translate (env1, y)
 
-translate (_  , (AlloyBinary ANY_ARROW_SOME _ _)  ) = undefined
+translate (env  , (AlloyBinary ANY_ARROW_SOME a b)  ) = (env3, (SmtVar multiplicitySet))
+  where 
+    (env1, aExpr) = translate (env, a)
+    (env2, bExpr) = translate (env, b)
+    sort = translateType (alloyType (AlloyBinary ANY_ARROW_SOME a b))
+    multiplicitySet = SmtVariable "multiplicitySet" sort False []
+    productExpr = SmtBinary Product aExpr bExpr
+    subset = SmtBinary Subset (SmtVar multiplicitySet) productExpr
+    xSort = getElementSort (smtType aExpr)
+    ySort = getElementSort (smtType bExpr)
+    x = SmtVariable "x" xSort False []
+    y = SmtVariable "y" ySort False []
+    xInA = SmtBinary Member (SmtVar x) aExpr
+    yInB = SmtBinary Member (SmtVar y) bExpr
+    {- multiplicitySet subset of A set -> some B
+       and
+       forall x in A . exists y in B . xy in multiplicitySet -}
+    xyTuple = concatSmtTuples (SmtVar x) (SmtVar y)
+    xyInMultiplicitySet = SmtBinary Member xyTuple (SmtVar multiplicitySet)
+    existsYBody = SmtMultiArity And [yInB, xyInMultiplicitySet]
+    existsY = SmtQt Exists [y] existsYBody
+    xInAImpliesExistsY = SmtBinary Implies xInA existsY
+    forAllX = SmtQt ForAll [x] xInAImpliesExistsY
+    andExpr = SmtMultiArity And [subset, forAllX]
+    existsSet = SmtQt Exists [multiplicitySet] andExpr
+    env3 = addAuxiliaryFormula env2 existsSet
+    
+
 translate (_  , (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
 translate (_  , (AlloyBinary ANY_ARROW_LONE _ _)  ) = undefined
 translate (_  , (AlloyBinary SOME_ARROW_ANY _ _)  ) = undefined
@@ -904,6 +931,9 @@ translateIntConstant env n = (env3, smtExpr)
     callExpr  = SmtCall intValue [smtExpr]
   varName = "u." ++ (show n)
   smtExpr = SmtVar (getDeclaration env3 varName)
+
+
+
 
 -- translateAlloyExprs :: Env -> [AlloyExpr] -> (Env, [SmtExpr])
 -- translateAlloyExprs env [] = (env, [])
