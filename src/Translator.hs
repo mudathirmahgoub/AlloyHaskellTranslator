@@ -415,9 +415,11 @@ translate (env  , (AlloyBinary ANY_ARROW_SOME a b)  ) = (env3, (SmtVar multiplic
     y = SmtVariable "y" ySort False []
     xInA = SmtBinary Member (SmtVar x) aExpr
     yInB = SmtBinary Member (SmtVar y) bExpr
-    {- multiplicitySet subset of A set -> some B
-       and
-       forall x in A . exists y in B . xy in multiplicitySet -}
+    -- Translation of A -> some B is multiplicitySet
+    {- exists multiplicitySet.  Atom x Atom        
+        multiplicitySet in A x B
+        and
+        forall x in A . exists y in B . xy in multiplicitySet -}    
     xyTuple = concatSmtTuples (SmtVar x) (SmtVar y)
     xyInMultiplicitySet = SmtBinary Member xyTuple (SmtVar multiplicitySet)
     existsYBody = SmtMultiArity And [yInB, xyInMultiplicitySet]
