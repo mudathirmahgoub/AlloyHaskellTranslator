@@ -4,19 +4,20 @@ import           Alloy
 import           Smt
 import           SmtLibPrinter
 import           Translator
-import           Model 
+import           Model
 import           Optimizer
+import           System.Environment
 
 printTranslation :: IO ()
 printTranslation = do
-    -- print (alloyType (AlloyBinary JOIN (Signature a) (Signature b)))
-    -- print (alloyType (Signature a))
-    putStr (printSmtLibScript translation2)
-    -- print (smtType (SmtVar (getConstant translation "A/f1")))
-    -- print (smtType (SmtVar (getConstant translation "A/f2")))
-    where 
-        translation1 = translateModel alloyModel
-        translation2 = optimizeEnv translation1
+    putStr translation2
+    writeFile "original.smt2"  translation1
+    writeFile "optimized.smt2" translation2
+  where
+    env1         = translateModel alloyModel
+    env2         = optimizeEnv env1
+    translation1 = (printSmtLibScript env1)
+    translation2 = (printSmtLibScript env2)
 
 
 main :: IO ()
