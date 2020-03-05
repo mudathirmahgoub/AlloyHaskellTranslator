@@ -35,7 +35,7 @@ optimize (SmtQt quantifier vars body) = optimization1
   optimization1  = SmtQt quantifier vars1 body2
 
 optimize (SortExpr sort         ) = SortExpr sort
-optimize (SmtMultiArity op exprs) = SmtMultiArity op exprs
+optimize (SmtMultiArity op exprs) = SmtMultiArity op (map optimize exprs)
 optimize (SmtCall       f  args ) = SmtCall f (map optimize args)
 
 
@@ -52,7 +52,7 @@ optimizeTupleVariable
 optimizeTupleVariable var expr = case sort var of
   Tuple sorts -> (freshVariables, smtLetExpr)
    where
-    sortIndexPairs = zipWith (,) sorts [1 .. (length sorts)]
+    sortIndexPairs = zipWith (,) sorts [0 .. ((length sorts) - 1)]
     freshVariables = map generateVariable sortIndexPairs
     generateVariable (s, n) = var { name = (name var) ++ (show n), sort = s }
     smtLetExpr = SmtLet [(var, tupleExpr)] expr
