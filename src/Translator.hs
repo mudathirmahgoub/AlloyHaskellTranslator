@@ -418,7 +418,7 @@ translate (env  , (AlloyBinary ANY_ARROW_SOME a b)  ) = (env3, (SmtVar multiplic
     y = SmtVariable "y" ySort False []
     xInA = SmtBinary Member (SmtVar x) aExpr
     yInB = SmtBinary Member (SmtVar y) bExpr
-    -- Translation of A -> some B is multiplicitySet
+    -- Translation of A set-> some B is multiplicitySet
     {- exists multiplicitySet.  Atom x Atom        
         multiplicitySet in A x B
         and
@@ -433,9 +433,6 @@ translate (env  , (AlloyBinary ANY_ARROW_SOME a b)  ) = (env3, (SmtVar multiplic
     existsSet = SmtQt Exists [multiplicitySet] andExpr
     env3 = addAuxiliaryFormula env2 existsSet
     
-{- multiplicitySet subset of A set -> some B
-       and
-       forall x in A . exists y in B . xy in multiplicitySet -}
 translate (_  , (AlloyBinary ANY_ARROW_ONE _ _)   ) = undefined
 translate (_  , (AlloyBinary ANY_ARROW_LONE _ _)  ) = undefined
 translate (_  , (AlloyBinary SOME_ARROW_ANY _ _)  ) = undefined
