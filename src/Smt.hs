@@ -229,8 +229,24 @@ getElementSort x       = error ("Expected a set. Found " ++ (show x))
 
 --             old     -> new     -> body
 replaceExpr :: SmtExpr -> SmtExpr -> SmtExpr -> SmtExpr
-replaceExpr = undefined
-
+replaceExpr old new expr = if old == expr
+    then new
+    else case expr of
+        SmtIntConstant n -> SmtIntConstant n
+        SmtVar         x -> SmtVar x
+        SmtUnary op x    -> SmtUnary op (replaceExpr old new x)
+        SmtBinary op x y ->
+            SmtBinary op (replaceExpr old new x) (replaceExpr old new y)
+        SmtIte c x y -> SmtIte (replaceExpr old new c)
+                               (replaceExpr old new x)
+                               (replaceExpr old new y)
+        SmtLet _ _         -> error ("Unsupported") -- review this
+        SmtQt qt vars body -> SmtQt qt vars (replaceExpr old new body) -- review this
+        SortExpr sort      -> SortExpr sort
+        SmtMultiArity op exprs ->
+            SmtMultiArity op (map (replaceExpr old new) exprs)
+        SmtCall function args ->
+            SmtCall function (map (replaceExpr old new) args)
 
 smtJoinType :: Sort -> Sort -> Sort
 smtJoinType (Set (Tuple xs)) (Set (Tuple ys)) =
@@ -249,8 +265,10 @@ makeRelation x = case smtType x of
 concatSmtTuples :: SmtExpr -> SmtExpr -> SmtExpr
 concatSmtTuples x y = case (smtType x, smtType y) of
     (Tuple xs, Tuple ys) -> SmtMultiArity MkTuple (xTuple ++ yTuple)
-        where         
-            xTuple = map (\n -> SmtBinary TupSel (SmtIntConstant n) x) [0.. ((length xs) - 1)]
-            yTuple = map (\n -> SmtBinary TupSel (SmtIntConstant n) x) [0 .. ((length xs) - 1)]
-    (_       , _       ) -> error "Expected tuples"
-    
+      where
+        xTuple = map (\n -> SmtBinary TupSel (SmtIntConstant n) x)
+                     [0 .. ((length xs) - 1)]
+        yTuple = map (\n -> SmtBinary TupSel (SmtIntConstant n) y)
+                     [0 .. ((length ys) - 1)]
+    (_, _) -> error "Expected tuples"
+

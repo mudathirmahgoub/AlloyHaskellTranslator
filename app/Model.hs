@@ -76,17 +76,20 @@ b = PrimSig
   , primLabel        = "B"
   , primMultiplicity = SOMEOF
   , primFacts        = []
-  , primFields = [ Decl { names     = [g1]
-                        , expr      = AlloyUnary SOMEOF (Signature a)
-                        , disjoint  = False
-                        , disjoint2 = False
-                        }
-                 , Decl { names     = [g2, g3, g4]
-                        , expr = AlloyBinary ANY_ARROW_SOME (Signature a) (Signature a)
-                        , disjoint  = False
-                        , disjoint2 = False
-                        }
-                 ]
+  , primFields       = [ Decl { names     = [g1]
+                              , expr      = AlloyUnary SOMEOF (Signature a)
+                              , disjoint  = False
+                              , disjoint2 = False
+                              }
+                       , Decl
+                         { names     = [g2, g3, g4]
+                         , expr      = AlloyBinary ANY_ARROW_SOME
+                                                   (Signature a)
+                                                   (Signature a)
+                         , disjoint  = False
+                         , disjoint2 = False
+                         }
+                       ]
   }
 
 g1 :: AlloyVariable
