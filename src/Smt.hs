@@ -232,9 +232,10 @@ replaceExpr :: SmtExpr -> SmtExpr -> SmtExpr -> SmtExpr
 replaceExpr old new expr = if old == expr
     then new
     else case expr of
-        SmtIntConstant n -> SmtIntConstant n
-        SmtVar         x -> SmtVar x
-        SmtUnary op x    -> SmtUnary op (replaceExpr old new x)
+        SmtIntConstant  n -> SmtIntConstant n
+        SmtBoolConstant x -> SmtBoolConstant x
+        SmtVar          x -> SmtVar x
+        SmtUnary op x     -> SmtUnary op (replaceExpr old new x)
         SmtBinary op x y ->
             SmtBinary op (replaceExpr old new x) (replaceExpr old new y)
         SmtIte c x y -> SmtIte (replaceExpr old new c)
