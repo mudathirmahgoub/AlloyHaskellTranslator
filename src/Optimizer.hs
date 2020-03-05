@@ -41,4 +41,22 @@ optimize (SmtCall       f  args ) = SmtCall f (map optimize args)
 
 optimizeTupleVariables
   :: [SmtDeclaration] -> SmtExpr -> ([SmtDeclaration], SmtExpr)
-optimizeTupleVariables vars expr = (vars, expr)
+optimizeTupleVariables []       expr = ([], expr)
+optimizeTupleVariables (x : xs) expr = (x1 ++ x2, y2)
+ where
+  (x1, y1) = optimizeTupleVariable x expr
+  (x2, y2) = optimizeTupleVariables xs y1
+
+optimizeTupleVariable
+  :: SmtDeclaration -> SmtExpr -> ([SmtDeclaration], SmtExpr)
+optimizeTupleVariable var expr = case sort var of
+  Tuple sorts -> (freshVariables, smtLetExpr)
+   where
+    sortIndexPairs = zipWith (,) sorts [1 .. (length sorts)]
+    freshVariables = map generateVariable sortIndexPairs
+    generateVariable (s, n) = var { name = (name var) ++ (show n), sort = s }
+    smtLetExpr = SmtLet [(var, tupleExpr)] expr
+    tupleExpr  = SmtMultiArity MkTuple (map SmtVar freshVariables)
+  _ -> ([var], expr)
+
+
