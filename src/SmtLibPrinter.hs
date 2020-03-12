@@ -106,9 +106,9 @@ printSmtLibExpr (SmtLet list x) =
 printSmtLibExpr (SmtQt quantifier list x) =
   "("
     ++ (printSmtLibQuantifier quantifier)
-    ++ "("
+    ++ " ("
     ++ (concatMap printSmtLibVariable list)
-    ++ ")"
+    ++ ") "
     ++ (printSmtLibExpr x)
     ++ ")"
 printSmtLibExpr (SortExpr sort       ) = printSmtLibSort sort

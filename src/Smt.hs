@@ -304,5 +304,8 @@ containsSmtExpr (SmtLet xs y) expr =
     expr == (SmtLet xs y) || (containsSmtExpr y expr) || any
         (\e -> containsSmtExpr e expr)
         (map snd xs)
+
+containsSmtExpr (SmtMultiArity op xs) expr =
+    any (\e -> containsSmtExpr e expr) xs
 containsSmtExpr x _ = error ((show x) ++ " is not implemented")
 
