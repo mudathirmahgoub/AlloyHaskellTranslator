@@ -29,7 +29,7 @@ printSmtLibScript Env {..} = printSmtLibScript parent
 declareSmtLibSort :: Sort -> String
 declareSmtLibSort (UninterpretedSort x y) =
   "(declare-sort " ++ x ++ " " ++ (show y) ++ ") \n"
-declareSmtLibSort _ = error ("Invalid sort  declaration")
+declareSmtLibSort _ = error "Invalid sort  declaration"
 
 declareSmtLibConstants :: SmtDeclaration -> String
 declareSmtLibConstants SmtVariable {..} = case arguments of
@@ -69,6 +69,20 @@ printSmtLibExpr (SmtVar          x) = printVariableName x
 printSmtLibExpr (SmtBoolConstant x) = if x then "true" else "false"
 printSmtLibExpr (SmtUnary op x) =
   "(" ++ (printSmtLibUnaryOp op) ++ " " ++ (printSmtLibExpr x) ++ ")"
+printSmtLibExpr (SmtBinary TupSel x y) =
+  "("
+    ++ "(_ tupSel "
+    ++ (printSmtLibExpr x)
+    ++ ") "
+    ++ (printSmtLibExpr y)
+    ++ ")"
+printSmtLibExpr (SmtIte x y z) =
+  "(ite "
+    ++ (printSmtLibExpr x)
+    ++ " "
+    ++ (printSmtLibExpr y)
+    ++ (printSmtLibExpr z)
+    ++ ")"
 printSmtLibExpr (SmtBinary op x y) =
   "("
     ++ (printSmtLibBinaryOp op)
@@ -105,12 +119,8 @@ printSmtLibExpr (SmtMultiArity op xs) =
     ++ " "
     ++ (concatMap (\x -> (printSmtLibExpr x) ++ " ") xs)
     ++ ")"
-printSmtLibExpr (SmtCall f args) = 
-  "("
-    ++ (printVariableName f)
-    ++ " "
-    ++ (concatMap printSmtLibExpr args)
-    ++ ")"
+printSmtLibExpr (SmtCall f args) =
+  "(" ++ (printVariableName f) ++ " " ++ (concatMap printSmtLibExpr args) ++ ")"
 
 printVariableName :: SmtDeclaration -> String
 printVariableName SmtVariable {..} =

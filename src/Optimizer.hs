@@ -21,33 +21,75 @@ isTrivial expr =
   expr == (SmtBoolConstant True) || expr == (SmtMultiArity And [])
 
 optimizeAssertion :: Assertion -> Assertion
-optimizeAssertion (Assertion label expr) = Assertion label (optimize expr)
+optimizeAssertion (Assertion label expr) =
+  Assertion label (repeatedlyOptimize (optimize expr))
 
-optimize :: SmtExpr -> SmtExpr
-optimize (SmtVar          var                  ) = SmtVar var
-optimize (SmtIntConstant  x                    ) = SmtIntConstant x
-optimize (SmtBoolConstant x                    ) = SmtBoolConstant x
-optimize (SmtUnary op x                        ) = SmtUnary op (optimize x)
-optimize (SmtBinary TupSel (SmtIntConstant 0) x) = case smtType x of
-  Tuple (s : []) -> x
-  _              -> (SmtBinary TupSel (SmtIntConstant 0) x)
-optimize (SmtBinary op x y          ) = SmtBinary op (optimize x) (optimize y)
-optimize (SmtIte x y z) = SmtIte (optimize x) (optimize y) (optimize z)
-optimize (SmtLet pairs body         ) = SmtLet pairs (optimize body)
-optimize (SmtQt quantifier vars body) = optimization1
- where
-  (vars1, body1) = optimizeTupleVariables vars body
-  body2          = optimize body1
-  optimization1  = SmtQt quantifier vars1 body2
+repeatedlyOptimize :: (SmtExpr, Bool) -> SmtExpr
+repeatedlyOptimize (x, False) = x
+repeatedlyOptimize (x, True ) = repeatedlyOptimize (optimize x)
 
-optimize (SortExpr sort             ) = SortExpr sort
-optimize (SmtMultiArity And (x : [])) = optimize x
-optimize (SmtMultiArity And xs      ) = andExpr
+optimize :: SmtExpr -> (SmtExpr, Bool)
+optimize (SmtVar          var) = (SmtVar var, False)
+optimize (SmtIntConstant  x  ) = (SmtIntConstant x, False)
+optimize (SmtBoolConstant x  ) = (SmtBoolConstant x, False)
+optimize (SmtUnary op x      ) = (smtExpr, changed)
  where
-  andExpr = SmtMultiArity And (filter (not . isTrivial) (map optimize xs))
-optimize (SmtMultiArity Or (x : [])) = x
-optimize (SmtMultiArity op exprs   ) = SmtMultiArity op (map optimize exprs)
-optimize (SmtCall       f  args    ) = SmtCall f (map optimize args)
+  (optimizedX, changed) = (optimize x)
+  smtExpr               = SmtUnary op optimizedX
+optimize (SmtBinary op x y) = (smtExpr, changed)
+ where
+  (optimizedX, changedX) = optimize x
+  (optimizedY, changedY) = optimize y
+  smtExpr                = SmtBinary op optimizedX optimizedY
+  changed                = changedX || changedY
+optimize (SmtIte x y z) = (smtExpr, changed)
+ where
+  (optimizedX, changedX) = optimize x
+  (optimizedY, changedY) = optimize y
+  (optimizedZ, changedZ) = optimize z
+  smtExpr                = SmtIte optimizedX optimizedY optimizedZ
+  changed                = changedX || changedY || changedZ
+
+optimize (SmtLet pairs body) = (smtExpr, changed)
+ where
+  (optimizedBody, changed) = optimize body
+  smtExpr                  = SmtLet pairs optimizedBody
+optimize (SmtQt quantifier vars body) = (optimization1, changed)
+ where
+  (vars1, body1  ) = optimizeTupleVariables vars body
+  (body2, changed) = optimize body1
+  optimization1    = SmtQt quantifier vars1 body2
+
+optimize (SortExpr sort             ) = (SortExpr sort, False)
+optimize (SmtMultiArity And (x : [])) = (smtExpr, True)
+  where (smtExpr, _) = optimize x
+optimize (SmtMultiArity And (x : xs)) = smtExpr
+ where
+  (optimizedX, changedX) = optimize x
+  optimizedXsPairs       = map optimize xs
+  optimizedXs            = filter (not . isTrivial) (map fst optimizedXsPairs)
+  changedXs              = any snd optimizedXsPairs
+  changed                = changedX || changedXs
+  smtExpr                = case optimizedXs of
+    [] -> (optimizedX, True)
+    _  -> case optimizedX of
+      SmtBoolConstant True -> (SmtMultiArity And optimizedXs, True)
+      SmtMultiArity And [] -> (SmtMultiArity And optimizedXs, True)
+      _ -> (SmtMultiArity And (optimizedX : optimizedXs), changed)
+optimize (SmtMultiArity Or (x : [])) = (x, True)
+optimize (SmtMultiArity op xs      ) = (smtExpr, changedXs)
+ where
+  optimizedXsPairs = map optimize xs
+  optimizedXs      = map fst optimizedXsPairs
+  changedXs        = any snd optimizedXsPairs
+  smtExpr          = SmtMultiArity op optimizedXs
+
+optimize (SmtCall f xs) = (smtExpr, changedXs)
+ where
+  optimizedXsPairs = map optimize xs
+  optimizedXs      = map fst optimizedXsPairs
+  changedXs        = any snd optimizedXsPairs
+  smtExpr          = SmtCall f optimizedXs
 
 
 optimizeTupleVariables
