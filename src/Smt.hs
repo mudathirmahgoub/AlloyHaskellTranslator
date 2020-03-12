@@ -241,7 +241,9 @@ replaceExpr old new expr = if old == expr
         SmtIte c x y -> SmtIte (replaceExpr old new c)
                                (replaceExpr old new x)
                                (replaceExpr old new y)
-        SmtLet _ _         -> error ("Unsupported") -- review this
+        SmtLet pairs body -> if any (\p -> old == SmtVar (fst p)) pairs
+            then SmtLet pairs body
+            else SmtLet pairs (replaceExpr old new body)
         SmtQt qt vars body -> SmtQt qt vars (replaceExpr old new body) -- review this
         SortExpr sort      -> SortExpr sort
         SmtMultiArity op exprs ->

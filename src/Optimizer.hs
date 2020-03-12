@@ -52,8 +52,15 @@ optimize (SmtIte x y z) = (smtExpr, changed)
 
 optimize (SmtLet pairs body) = (smtExpr, changed)
  where
-  (optimizedBody, changed) = optimize body
-  smtExpr                  = SmtLet pairs optimizedBody
+  (optimizedBody1, changed) = optimize body
+  optimizedBody2            = replaceUnaryTuples pairs optimizedBody1
+  replaceUnaryTuples [] y = y
+  replaceUnaryTuples ((x, SmtMultiArity MkTuple (x0 : [])) : xs) y =
+    replaceExpr (SmtBinary TupSel (SmtIntConstant 0) (SmtVar x)) x0 newY
+    where newY = replaceUnaryTuples xs y
+  replaceUnaryTuples _ y = y
+  smtExpr = SmtLet pairs optimizedBody2
+
 optimize (SmtQt quantifier vars body) = (optimization1, changed)
  where
   (vars1, body1  ) = optimizeTupleVariables vars body
