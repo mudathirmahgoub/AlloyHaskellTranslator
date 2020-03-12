@@ -275,3 +275,34 @@ concatSmtTuples x y = case (smtType x, smtType y) of
                      [0 .. ((length ys) - 1)]
     (_, _) -> error "Expected tuples"
 
+
+containsSmtExpr :: SmtExpr -> SmtExpr -> Bool
+containsSmtExpr (SmtIntConstant  x) expr = expr == (SmtIntConstant x)
+containsSmtExpr (SmtBoolConstant x) expr = expr == (SmtBoolConstant x)
+containsSmtExpr (SmtVar          x) expr = expr == (SmtVar x)
+-- unary
+containsSmtExpr (SmtUnary op x) expr =
+    expr == (SmtUnary op x) || (containsSmtExpr x expr)
+-- binary
+containsSmtExpr (SmtBinary op x y) expr =
+    expr
+        == (SmtBinary op x y)
+        || (containsSmtExpr x expr)
+        || (containsSmtExpr y expr)
+-- if then else
+containsSmtExpr (SmtIte x y z) expr =
+    expr
+        == (SmtIte x y z)
+        || (containsSmtExpr x expr)
+        || (containsSmtExpr y expr)
+        || (containsSmtExpr z expr)
+-- quantified expression
+containsSmtExpr (SmtQt x y z) expr =
+    expr == (SmtQt x y z) || (containsSmtExpr z expr)
+-- let expression
+containsSmtExpr (SmtLet xs y) expr =
+    expr == (SmtLet xs y) || (containsSmtExpr y expr) || any
+        (\e -> containsSmtExpr e expr)
+        (map snd xs)
+containsSmtExpr x _ = error ((show x) ++ " is not implemented")
+

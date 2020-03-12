@@ -59,7 +59,10 @@ optimize (SmtLet pairs body) = (smtExpr, changed)
     replaceExpr (SmtBinary TupSel (SmtIntConstant 0) (SmtVar x)) x0 newY
     where newY = replaceUnaryTuples xs y
   replaceUnaryTuples _ y = y
-  smtExpr = SmtLet pairs optimizedBody2
+  pairs1  = filter (\p -> containsSmtExpr optimizedBody2 (SmtVar (fst p))) pairs
+  smtExpr = if (length pairs1) > 0
+    then SmtLet pairs1 optimizedBody2
+    else optimizedBody2
 
 optimize (SmtQt quantifier vars body) = (optimization1, changed)
  where
