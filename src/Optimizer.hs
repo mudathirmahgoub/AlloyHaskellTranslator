@@ -41,7 +41,7 @@ optimize (SmtQt quantifier vars body) = optimization1
   optimization1  = SmtQt quantifier vars1 body2
 
 optimize (SortExpr sort             ) = SortExpr sort
-optimize (SmtMultiArity And (x : [])) = x
+optimize (SmtMultiArity And (x : [])) = optimize x
 optimize (SmtMultiArity And xs      ) = andExpr
  where
   andExpr = SmtMultiArity And (filter (not . isTrivial) (map optimize xs))
