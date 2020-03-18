@@ -143,21 +143,21 @@ fact4 = Fact
 x :: Sig
 x = SubsetSig { parents            = [SigInt]
               , subsetLabel        = "X"
-              , subsetMultiplicity = SOMEOF
+              , subsetMultiplicity = ONEOF
               , subsetFacts        = []
               , subsetFields       = []
               }
 y :: Sig
 y = SubsetSig { parents            = [SigInt]
               , subsetLabel        = "Y"
-              , subsetMultiplicity = SOMEOF
+              , subsetMultiplicity = ONEOF
               , subsetFacts        = []
               , subsetFields       = []
               }
 z :: Sig
 z = SubsetSig { parents            = [SigInt]
               , subsetLabel        = "Z"
-              , subsetMultiplicity = SOMEOF
+              , subsetMultiplicity = ONEOF
               , subsetFacts        = []
               , subsetFields       = []
               }
