@@ -162,6 +162,12 @@ z = SubsetSig { parents            = [SigInt]
               , subsetFields       = []
               }
 
+u :: AlloyVariable
+u = AlloyVariable "u" (Prod [SigInt])
+
+v :: AlloyVariable
+v = AlloyVariable "v" (Prod [SigInt])
+
 zFacts :: [Fact]
 zFacts =
   [ Fact
@@ -191,6 +197,22 @@ zFacts =
   , Fact "g3 != g4" (AlloyBinary NOT_EQUALS (AlloyVar g3) (AlloyVar g4))
   , Fact "some g2"  (AlloyUnary SOME (AlloyVar g2))
   , Fact "some g3"  (AlloyUnary SOME (AlloyVar g3))
+  , Fact
+    "some u, v: one Int | plus[u, v] = 5 and  minus[u, v] = 3"
+    (AlloyQt
+      Some
+      [Decl [u, v] (AlloyUnary ONEOF (Signature SigInt)) False False]
+      (AlloyList
+        ListAND
+        [ AlloyBinary EQUALS
+                      (AlloyCall integerPlus [AlloyVar u, AlloyVar v])
+                      (AlloyConstant "5" SigInt)
+        , AlloyBinary EQUALS
+                      (AlloyCall integerMinus [AlloyVar u, AlloyVar v])
+                      (AlloyConstant "3" SigInt)
+        ]
+      )
+    )
   ]
 
 alloyModel :: AlloyModel

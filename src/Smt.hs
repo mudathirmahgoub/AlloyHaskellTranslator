@@ -307,5 +307,5 @@ containsSmtExpr (SmtLet xs y) expr =
 
 containsSmtExpr (SmtMultiArity op xs) expr =
     any (\e -> containsSmtExpr e expr) xs
-containsSmtExpr x _ = error ((show x) ++ " is not implemented")
-
+containsSmtExpr (SortExpr x) expr = expr == (SortExpr x)
+containsSmtExpr x            _    = error ((show x) ++ " is not implemented")

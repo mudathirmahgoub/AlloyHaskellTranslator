@@ -214,7 +214,10 @@ translateDisjointDecl env decl = andExpr
   function (x, y) = SmtBinary
     Eq
     empty
-    (SmtBinary Intersection (SmtVar xVar) (SmtVar yVar))
+    (SmtBinary Intersection
+               (makeRelation (SmtVar xVar))
+               (makeRelation (SmtVar yVar))
+    )
    where
     xVar  = getVariable env (alloyVarName x)
     yVar  = getVariable env (alloyVarName y)
@@ -224,6 +227,7 @@ translateDisjointDecl env decl = andExpr
     | u <- names decl
     , v <- names decl
     , (alloyVarName u) < (alloyVarName v)
+    , disjoint decl
     ]
   andExpr = SmtMultiArity And (map function pairs)
 
@@ -589,7 +593,7 @@ translate (env, (AlloyITE c x y)) =
 -- quantified expression
 -- all x: some A| all y: one x | some y
 -- check with Andy with quantifiers versus nested quantifiers
-translate (env, (AlloyQt op decls body)) = (env2, smtQt)
+translate (env, (AlloyQt op decls body)) = (env, smtQt)
  where
   variableTuples   = map (translateDecl env) (splitDecls decls)
   variables        = map first variableTuples
@@ -610,9 +614,20 @@ translate (env, (AlloyQt op decls body)) = (env2, smtQt)
         (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
     Just x ->
       error ("Do not know how to translate auxiliary formula: " ++ (show x))
-  translateQt No            = SmtUnary Not (translateQt All)
-  translateQt Lone          = undefined
-  translateQt Some          = undefined
+  translateQt No   = SmtUnary Not (translateQt All)
+  translateQt Lone = undefined
+  translateQt Some = case auxiliaryFormula env2 of
+    Nothing ->
+      SmtQt Exists variables (SmtMultiArity And [constraints, bodyExpr])
+    Just (SmtQt Exists existsVars existsBody) -> SmtQt
+      Exists
+      variables
+      (SmtMultiArity And [constraints, bodyExpr])
+     where
+      newBody =
+        (SmtQt Exists existsVars (SmtMultiArity And [existsBody, bodyExpr]))
+    Just x ->
+      error ("Do not know how to translate auxiliary formula: " ++ (show x))
   translateQt Sum           = undefined
   translateQt Comprehension = undefined
   translateQt _             = error ((show op) ++ " is not an alloy quantifier")
@@ -897,9 +912,9 @@ translateArithmetic (env, (AlloyBinary op a b)) = (env3, cExpr)
   zValue        = SmtCall intValue [SmtVar zVar]
   xyOperation   = SmtBinary smtOp xValue yValue
   equal         = SmtBinary Eq xyOperation zValue
-  xMember       = SmtBinary Member xTuple aExpr
-  yMember       = SmtBinary Member yTuple bExpr
-  zMember       = SmtBinary Member zTuple cExpr
+  xMember       = SmtBinary Member xTuple (makeRelation aExpr)
+  yMember       = SmtBinary Member yTuple (makeRelation bExpr)
+  zMember       = SmtBinary Member zTuple (makeRelation cExpr)
   xyMembers     = SmtMultiArity And [xMember, yMember]
 
   -- for all z : uninterpretedInt. x in Result implies
