@@ -8,6 +8,16 @@ import           Model
 import           Optimizer
 import           System.Environment
 
+
+func :: Either Int Bool -> String
+func (Left x) = "Int"
+func (Right x) = "Bool"
+
+x = func (Left 5)
+
+y = func (Right True)
+
+
 printTranslation :: IO ()
 printTranslation = do
     putStr translation2
