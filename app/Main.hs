@@ -1,4 +1,4 @@
-module Main where
+  module Main where
 import           AlloyOperators
 import           Alloy
 import           Smt

@@ -107,7 +107,7 @@ addAuxiliaryFormula (Env f m p) (SmtQt Exists newVars newBody) = case f of
    where
     newF =
       SmtQt Exists (oldVars ++ newVars) (SmtMultiArity And [oldBody, newBody])
-  _ -> error "Only an existentional expression can be an auxiliary formula"
+  _ -> error "Only an existential expression can be an auxiliary formula"
 
 addAuxiliaryFormula RootEnv {..} _ =
   error "Auxiliary formulas are only for nested environments"
